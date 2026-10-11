@@ -1,101 +1,126 @@
 import json
 import os
-import random
-import string
+import uuid
 
-from flask import Flask, redirect, render_template, request, send_from_directory, url_for
-from flask_socketio import SocketIO, emit, join_room
+from flask import Flask, render_template, request, send_from_directory, session
+from flask_socketio import SocketIO, emit
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "vote-to-play-secret"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or uuid.uuid4().hex
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 with open(os.path.join(BASE_DIR, "heroes_data.json"), "r", encoding="utf-8") as f:
     HEROES = json.load(f)
 
-rooms = {}
+game = {
+    "players": {},
+    "next_player_number": 1,
+    "state": "lobby",
+    "target_player": None,
+    "target_history": set(),
+    "suggestions": {},
+    "selection_options": [],
+    "winner": None,
+    "message": "The shared game is open. Start a round when at least two players are here.",
+}
+RECONNECT_GRACE_SECONDS = 30
 
 
-def generate_room_code():
-    return "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-
-
-def ensure_room_host(room):
-    if not room.get("players"):
-        return
-    if room.get("host") not in room["players"]:
-        room["host"] = next(iter(room["players"].keys()))
-
-
-def room_snapshot(room, username=None):
-    ensure_room_host(room)
+def game_snapshot(player_id):
     players = [
-        {"username": player_name, "is_host": player_name == room["host"], "is_target": player_name == room["target_player"]}
-        for player_name in room["players"].keys()
+        {
+            "id": joined_player_id,
+            "username": player["username"],
+            "is_target": joined_player_id == game["target_player"],
+            "is_connected": bool(player["sids"]),
+            "last_hero": player.get("last_hero"),
+        }
+        for joined_player_id, player in game["players"].items()
     ]
+    connected_players = sum(bool(player["sids"]) for player in game["players"].values())
     return {
-        "code": room["code"],
-        "state": room["state"],
-        "host": room["host"],
+        "state": game["state"],
         "players": players,
-        "target_player": room["target_player"],
-        "suggestions": room["suggestions"],
-        "selection_options": room["selection_options"],
-        "message": room["message"],
-        "winner": room.get("winner"),
-        "my_username": username,
-        "can_start": username == room["host"] and room["state"] == "lobby" and len(room["players"]) >= 2,
+        "target_player": game["target_player"],
+        "suggestions": game["suggestions"],
+        "selection_options": game["selection_options"],
+        "winner": game["winner"],
+        "message": game["message"],
+        "my_player_id": player_id,
+        "can_start": (
+            connected_players >= 2
+            and game["state"] in ("lobby", "complete")
+            and player_id not in game["target_history"]
+        ),
     }
 
 
-def emit_room_state(room_code):
-    room = rooms.get(room_code)
-    if not room:
+def emit_game_state():
+    for player_id, player in game["players"].items():
+        for sid in tuple(player["sids"]):
+            socketio.emit("game_state", game_snapshot(player_id), to=sid)
+
+
+def advance_to_selection():
+    non_target_players = [
+        player_id
+        for player_id, player in game["players"].items()
+        if player["sids"]
+        if player_id != game["target_player"]
+    ]
+    if not non_target_players or not all(
+        player_id in game["suggestions"] for player_id in non_target_players
+    ):
         return
-    for username, player_data in room["players"].items():
-        socketio.emit("room_state", room_snapshot(room, username), to=player_data["sid"])
+
+    game["state"] = "choosing"
+    game["selection_options"] = [
+        {
+            "player_id": player_id,
+            "username": game["players"][player_id]["username"],
+            "hero_key": hero_key,
+            "hero_name": HEROES[hero_key]["localized_name"],
+            "image_path": f"/images/{hero_key}.png",
+        }
+        for player_id, hero_key in game["suggestions"].items()
+        if player_id in game["players"]
+    ]
+    target_name = game["players"][game["target_player"]]["username"]
+    game["message"] = f"{target_name}, choose the hero you want to pick."
 
 
-def start_round(room):
-    ensure_room_host(room)
-    if len(room["players"]) < 2:
-        room["state"] = "lobby"
-        room["message"] = "Need at least 2 players to start a suggestion round."
-        emit_room_state(room["code"])
+def start_round(player_id):
+    players = [
+        active_player_id
+        for active_player_id, player in game["players"].items()
+        if player["sids"]
+    ]
+    if len(players) < 2:
+        game["message"] = "At least two browsers must be here to start a round."
+        emit_game_state()
         return
 
-    players = list(room["players"].keys())
-    if room.get("target_index") is None:
-        room["target_index"] = 0
+    if player_id not in players or player_id in game["target_history"]:
+        return
 
-    target = players[room["target_index"] % len(players)]
-    room["target_index"] = (room["target_index"] + 1) % len(players)
-    room["state"] = "suggesting"
-    room["target_player"] = target
-    room["suggestions"] = {}
-    room["selection_options"] = []
-    room["winner"] = None
-    room["message"] = f"{target} is the target player. Everyone else should suggest one hero."
-    emit_room_state(room["code"])
+    target = player_id
+    game["target_history"].add(target)
+    game["state"] = "suggesting"
+    game["target_player"] = target
+    game["suggestions"] = {}
+    game["selection_options"] = []
+    game["winner"] = None
+    target_name = game["players"][target]["username"]
+    game["message"] = f"{target_name} started the round and is the target. Everyone else should suggest one hero."
+    emit_game_state()
 
 
 @app.route("/")
 def index():
-    return render_template("index.html")
-
-
-@app.route("/room")
-def room_page():
-    room_code = request.args.get("room_code", "").strip().upper()
-    username = request.args.get("username", "").strip()
-    if not username:
-        return redirect(url_for("index"))
-    if not room_code:
-        room_code = generate_room_code()
-        return redirect(url_for("room_page", room_code=room_code, username=username))
-    return render_template("room.html", room_code=room_code, username=username, heroes=HEROES)
+    player_id = session.setdefault("player_id", uuid.uuid4().hex)
+    return render_template("room.html", player_id=player_id, heroes=HEROES)
 
 
 @app.route("/images/<path:filename>")
@@ -103,138 +128,180 @@ def serve_image(filename):
     return send_from_directory(os.path.join(BASE_DIR, "images"), filename)
 
 
-@socketio.on("join_room")
-def handle_join_room(data):
-    if not data:
+@socketio.on("join_game")
+def handle_join_game():
+    player_id = session.get("player_id")
+    if not player_id:
+        emit("join_error", {"message": "Player identity missing. Refresh the page to reconnect."})
         return
 
-    room_code = (data.get("room_code") or "").strip().upper()
-    username = (data.get("username") or "").strip()
-
-    if not room_code or not username:
-        emit("join_error", {"message": "Room code and username are required."})
-        return
-
-    room = rooms.get(room_code)
-    if not room:
-        room = {
-            "code": room_code,
-            "host": username,
-            "players": {},
-            "state": "lobby",
-            "target_player": None,
-            "suggestions": {},
-            "selection_options": [],
-            "message": "Lobby is open. Start a round when everyone is ready.",
-            "target_index": 0,
+    player = game["players"].get(player_id)
+    if player is None:
+        player = {
+            "username": f"Player {game['next_player_number']}",
+            "sids": set(),
+            "disconnect_token": None,
         }
-        rooms[room_code] = room
+        game["next_player_number"] += 1
+        game["players"][player_id] = player
 
-    username_map = {player_name.lower(): player_name for player_name in room["players"].keys()}
-    if username.lower() in username_map:
-        emit("join_error", {"message": "That username is already in the room."})
+    player["disconnect_token"] = None
+    player["sids"].add(request.sid)
+    emit("join_success", {"username": player["username"]}, to=request.sid)
+    emit_game_state()
+
+
+@socketio.on("rename_player")
+def handle_rename_player(data):
+    player_id = session.get("player_id")
+    player = game["players"].get(player_id)
+    if player is None or request.sid not in player["sids"]:
+        emit("rename_error", {"message": "Reconnect before changing your name."})
         return
 
-    room["players"][username] = {"sid": request.sid}
-    ensure_room_host(room)
-    join_room(room_code)
-    emit("join_success", {"room_code": room_code, "username": username}, to=request.sid)
-    emit_room_state(room_code)
+    username = (data or {}).get("username", "").strip()
+    if not username:
+        emit("rename_error", {"message": "Enter a name before saving."})
+        return
+    if len(username) > 20:
+        emit("rename_error", {"message": "Names must be 20 characters or fewer."})
+        return
+    if any(
+        other_id != player_id
+        and other["username"].casefold() == username.casefold()
+        for other_id, other in game["players"].items()
+    ):
+        emit("rename_error", {"message": "That name is already being used."})
+        return
+
+    previous_name = player["username"]
+    player["username"] = username
+    game["message"] = f"{previous_name} changed their name to {username}."
+    emit_game_state()
+    for sid in tuple(player["sids"]):
+        socketio.emit("rename_success", {"username": username}, to=sid)
 
 
 @socketio.on("start_round")
-def handle_start_round(data):
-    room_code = (data.get("room_code") or "").strip().upper()
-    username = (data.get("username") or "").strip()
-    room = rooms.get(room_code)
-
-    if not room or username != room["host"]:
+def handle_start_round():
+    player_id = session.get("player_id")
+    if (
+        player_id not in game["players"]
+        or not game["players"][player_id]["sids"]
+        or player_id in game["target_history"]
+        or game["state"] not in ("lobby", "complete")
+    ):
         return
-
-    start_round(room)
+    start_round(player_id)
 
 
 @socketio.on("submit_suggestion")
 def handle_submit_suggestion(data):
-    room_code = (data.get("room_code") or "").strip().upper()
-    username = (data.get("username") or "").strip()
-    hero_key = (data.get("hero_key") or "").strip()
-    room = rooms.get(room_code)
+    player_id = session.get("player_id")
+    hero_key = (data or {}).get("hero_key", "")
 
-    if not room or room["state"] != "suggesting":
+    if game["state"] != "suggesting":
         return
-    if username == room["target_player"] or username not in room["players"]:
+    if player_id == game["target_player"] or player_id not in game["players"]:
+        return
+    if player_id in game["suggestions"]:
         return
     if hero_key not in HEROES:
         return
 
-    room["suggestions"][username] = hero_key
-    room["message"] = f"{username} submitted a suggestion. Waiting for the remaining players."
-
-    non_target_players = [player_name for player_name in room["players"].keys() if player_name != room["target_player"]]
-    if len(room["suggestions"]) >= len(non_target_players):
-        room["state"] = "choosing"
-        room["selection_options"] = [
-            {
-                "username": submitter,
-                "hero_key": hero_key,
-                "hero_name": HEROES[hero_key]["localized_name"],
-                "image_path": f"/images/{hero_key}.png",
-            }
-            for submitter, hero_key in room["suggestions"].items()
-        ]
-        room["message"] = f"{room['target_player']}, choose the hero you want to pick."
-        emit("suggestions_ready", {"options": room["selection_options"]}, room=room_code)
-    emit_room_state(room_code)
+    game["suggestions"][player_id] = hero_key
+    game["message"] = (
+        f"{game['players'][player_id]['username']} submitted a suggestion. "
+        "Waiting for the remaining players."
+    )
+    advance_to_selection()
+    emit_game_state()
 
 
 @socketio.on("choose_suggestion")
 def handle_choose_suggestion(data):
-    room_code = (data.get("room_code") or "").strip().upper()
-    username = (data.get("username") or "").strip()
-    hero_key = (data.get("hero_key") or "").strip()
-    room = rooms.get(room_code)
+    player_id = session.get("player_id")
+    hero_key = (data or {}).get("hero_key", "")
 
-    if not room or room["state"] != "choosing":
+    if game["state"] != "choosing" or player_id != game["target_player"]:
         return
-    if username != room["target_player"]:
-        return
-    if hero_key not in {option["hero_key"] for option in room["selection_options"]}:
+    if hero_key not in {option["hero_key"] for option in game["selection_options"]}:
         return
 
-    selected = next(option for option in room["selection_options"] if option["hero_key"] == hero_key)
-    room["winner"] = {
+    target_name = game["players"][player_id]["username"]
+    game["winner"] = {
         "hero_key": hero_key,
         "hero_name": HEROES[hero_key]["localized_name"],
         "image_path": f"/images/{hero_key}.png",
-        "selected_by": username,
+        "selected_by": target_name,
     }
-    room["state"] = "complete"
-    room["message"] = f"{username} picked {HEROES[hero_key]['localized_name']}!"
-    emit("round_result", room["winner"], room=room_code)
-    emit_room_state(room_code)
+    game["players"][player_id]["last_hero"] = hero_key
+    game["state"] = "complete"
+    game["message"] = f"{target_name} picked {HEROES[hero_key]['localized_name']}!"
+    active_players = {
+        active_player_id
+        for active_player_id, player in game["players"].items()
+        if player["sids"]
+    }
+    if active_players.issubset(game["target_history"]):
+        game["target_history"].clear()
+    socketio.emit("round_result", game["winner"])
+    emit_game_state()
 
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    for room_code, room in list(rooms.items()):
-        for username, player_data in list(room["players"].items()):
-            if player_data["sid"] == request.sid:
-                was_host = room["host"] == username
-                del room["players"][username]
-                if not room["players"]:
-                    del rooms[room_code]
-                    return
+    for player_id, player in list(game["players"].items()):
+        if request.sid not in player["sids"]:
+            continue
 
-                if was_host:
-                    room["host"] = next(iter(room["players"].keys()))
-                else:
-                    ensure_room_host(room)
+        player["sids"].remove(request.sid)
+        if player["sids"]:
+            return
 
-                if room["target_player"] == username:
-                    room["target_player"] = None
-                emit_room_state(room_code)
-                return
+        disconnect_token = uuid.uuid4().hex
+        player["disconnect_token"] = disconnect_token
+        emit_game_state()
+        socketio.start_background_task(
+            expire_disconnected_player,
+            player_id,
+            disconnect_token,
+        )
+        return
+
+
+def expire_disconnected_player(player_id, disconnect_token):
+    socketio.sleep(RECONNECT_GRACE_SECONDS)
+    player = game["players"].get(player_id)
+    if (
+        player is None
+        or player["sids"]
+        or player["disconnect_token"] != disconnect_token
+    ):
+        return
+
+    del game["players"][player_id]
+    game["suggestions"].pop(player_id, None)
+    game["target_history"].discard(player_id)
+
+    if game["target_player"] == player_id and game["state"] in ("suggesting", "choosing"):
+        game["state"] = "lobby"
+        game["target_player"] = None
+        game["suggestions"] = {}
+        game["selection_options"] = []
+        game["message"] = "The target player left. Start a new round when ready."
+    elif game["state"] in ("suggesting", "choosing") and sum(
+        bool(player["sids"]) for player in game["players"].values()
+    ) < 2:
+        game["state"] = "lobby"
+        game["target_player"] = None
+        game["suggestions"] = {}
+        game["selection_options"] = []
+        game["message"] = "At least two browsers must be here to continue. Start a new round when ready."
+    elif game["state"] == "suggesting":
+        advance_to_selection()
+
+    emit_game_state()
 
 
 if __name__ == "__main__":

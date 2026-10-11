@@ -3,63 +3,239 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vote to Play Room</title>
+  <title>Vote to Play</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
-    body { background: radial-gradient(circle at top, #0f172a, #020617 55%); }
-    .hero-card { position: relative; overflow: hidden; }
-    .hero-card img { transition: transform 0.2s ease; }
-    .hero-card:hover img { transform: scale(1.04); }
+    :root {
+      color-scheme: dark;
+      --line: rgba(148, 163, 184, 0.14);
+      --accent: #67e8f9;
+    }
+
+    body {
+      background:
+        radial-gradient(ellipse at 50% -20%, rgba(8, 145, 178, 0.16), transparent 55%),
+        radial-gradient(ellipse at 100% 40%, rgba(124, 58, 237, 0.08), transparent 38%),
+        #070b14;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .premium-shell { max-width: 1440px; }
+    .topbar, .surface-panel {
+      border-color: var(--line);
+      background: linear-gradient(145deg, rgba(18, 27, 44, 0.94), rgba(10, 16, 29, 0.94));
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.035);
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar { position: relative; overflow: hidden; }
+    .topbar::after {
+      position: absolute;
+      top: 0;
+      right: 8%;
+      width: 220px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.65), transparent);
+      content: "";
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid rgba(103, 232, 249, 0.25);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(8, 145, 178, 0.22), rgba(15, 23, 42, 0.9));
+      color: var(--accent);
+      box-shadow: 0 8px 28px rgba(8, 145, 178, 0.12);
+    }
+
+    .section-eyebrow { color: var(--accent); letter-spacing: 0.2em; }
+    .rename-form {
+      width: fit-content;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(2, 6, 23, 0.42);
+      padding: 4px;
+    }
+
+    .rename-input { min-width: 0; border: 1px solid transparent; background: transparent; }
+    .rename-input:focus { border-color: rgba(103, 232, 249, 0.3); background: rgba(15, 23, 42, 0.8); }
+    .quiet-button { transition: color 160ms ease, border-color 160ms ease, background 160ms ease; }
+    .start-button {
+      min-height: 46px;
+      border: 1px solid rgba(165, 243, 252, 0.6);
+      background: linear-gradient(135deg, #a5f3fc, #22d3ee);
+      box-shadow: 0 8px 24px rgba(34, 211, 238, 0.16);
+      transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+    }
+    .start-button:hover { transform: translateY(-1px); box-shadow: 0 12px 30px rgba(34, 211, 238, 0.23); filter: brightness(1.04); }
+
+    .surface-panel { border-radius: 22px; }
+    .panel-heading { border-bottom: 1px solid var(--line); padding-bottom: 16px; }
+    .player-row {
+      border-color: rgba(148, 163, 184, 0.1);
+      background: rgba(2, 6, 23, 0.36);
+      transition: border-color 160ms ease, background 160ms ease;
+    }
+    .player-row:hover { border-color: rgba(103, 232, 249, 0.22); background: rgba(15, 23, 42, 0.72); }
+
+    .status-banner {
+      position: relative;
+      min-height: 58px;
+      border-color: rgba(103, 232, 249, 0.13);
+      background: linear-gradient(100deg, rgba(8, 145, 178, 0.09), rgba(15, 23, 42, 0.6) 70%);
+      color: #cbd5e1;
+    }
+    #status-banner { padding-left: 48px; }
+    .status-banner::before {
+      position: absolute;
+      top: 50%;
+      left: 20px;
+      width: 8px;
+      height: 8px;
+      transform: translateY(-50%);
+      border-radius: 999px;
+      background: #22d3ee;
+      box-shadow: 0 0 14px rgba(34, 211, 238, 0.7);
+      content: "";
+    }
+
+    .phase-card { padding: clamp(18px, 3vw, 30px); }
+    .phase-title { letter-spacing: -0.035em; }
+    .search-input {
+      border-color: rgba(148, 163, 184, 0.16);
+      background: rgba(2, 6, 23, 0.5);
+      transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+    .search-input:focus { border-color: rgba(103, 232, 249, 0.6); background: rgba(2, 6, 23, 0.8); box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.08); }
+
+    .hero-card {
+      border-color: rgba(148, 163, 184, 0.13);
+      background: linear-gradient(155deg, rgba(30, 41, 59, 0.9), rgba(10, 16, 29, 0.96));
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+    .hero-card > img { height: 132px; object-fit: cover; }
+    .hero-card > span { min-height: 58px; }
+    .hero-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(103, 232, 249, 0.58);
+      background: linear-gradient(155deg, rgba(22, 50, 66, 0.95), rgba(10, 16, 29, 0.98));
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(103, 232, 249, 0.08);
+    }
+    .hero-card:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    .hero-card img { transition: transform 240ms ease, filter 240ms ease; filter: saturate(0.86) contrast(1.04); }
+    .hero-card:hover img { transform: scale(1.045); filter: saturate(1.05) contrast(1.04); }
+    .result-panel {
+      border-color: rgba(52, 211, 153, 0.25);
+      background: radial-gradient(ellipse at 0 50%, rgba(16, 185, 129, 0.13), transparent 58%), rgba(2, 6, 23, 0.5);
+    }
+
+    @media (max-width: 640px) {
+      .topbar, .surface-panel { border-radius: 18px; }
+      .rename-form { width: 100%; }
+      .rename-input { flex: 1; }
+      .hero-card > img { height: 112px; }
+    }
   </style>
 </head>
 <body class="min-h-screen text-slate-100">
-  <div class="mx-auto max-w-7xl px-4 py-8">
-    <header class="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-slate-700 bg-slate-800/90 p-5 shadow-lg shadow-slate-950/30 md:flex-row md:items-center">
-      <div>
-        <p class="text-xs uppercase tracking-[0.25em] text-cyan-400">Room</p>
-        <h1 id="room-name" class="mt-2 text-3xl font-black tracking-tight text-white">Room</h1>
+  <div class="premium-shell mx-auto px-4 py-6 sm:px-6 sm:py-10">
+    <header class="topbar mb-6 flex flex-col justify-between gap-5 rounded-2xl border border-slate-700 bg-slate-800/90 p-5 sm:p-6 md:flex-row md:items-center">
+      <div class="flex items-start gap-4">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" class="h-6 w-6">
+            <path d="M12 2.75 20 7.3v9.4l-8 4.55-8-4.55V7.3l8-4.55Z" stroke="currentColor" stroke-width="1.5"/>
+            <path d="m8 8 8 8m0-8-8 8" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <p class="section-eyebrow text-[10px] font-bold uppercase">Dota 2 · Party draft</p>
+          <h1 class="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">Vote to Play</h1>
+          <form id="rename-form" class="rename-form mt-3 flex flex-wrap items-center gap-2">
+            <label for="player-name-input" class="pl-2 text-xs font-medium text-slate-400">Playing as</label>
+            <input id="player-name-input" type="text" maxlength="20" required class="rename-input w-36 rounded-lg px-2 py-2 text-sm text-white outline-none transition" placeholder="Player name">
+            <button type="submit" class="quiet-button rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-300 hover:border-cyan-400/50 hover:bg-slate-700 hover:text-white">Save</button>
+          </form>
       </div>
-      <div class="flex items-center gap-3">
-        <span class="rounded-full border border-slate-600 bg-slate-900 px-3 py-1 text-sm font-medium text-slate-300">Username: <span id="player-name">{{ username }}</span></span>
-        <button id="start-round-btn" class="hidden rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400">Start round</button>
-      </div>
+      <button id="start-round-btn" class="start-button hidden rounded-xl px-5 py-3 font-bold text-slate-950">Start round</button>
     </header>
 
-    <div class="grid gap-6 lg:grid-cols-[280px,1fr]">
-      <aside class="rounded-2xl border border-slate-700 bg-slate-800/75 p-5">
-        <h2 class="mb-4 text-xl font-bold text-white">Players</h2>
+    <div class="grid gap-5 lg:grid-cols-[290px,minmax(0,1fr)]">
+      <aside class="surface-panel h-fit rounded-2xl border border-slate-700 bg-slate-800/75 p-5 sm:p-6">
+        <div class="panel-heading mb-4 flex items-center justify-between">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">In this game</p>
+            <h2 class="mt-1 text-lg font-bold text-white">Players</h2>
+          </div>
+          <span id="player-count" class="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-400"></span>
+        </div>
         <ul id="player-list" class="space-y-3"></ul>
       </aside>
 
-      <main class="rounded-2xl border border-slate-700 bg-slate-800/75 p-5">
-        <div id="status-banner" class="mb-6 rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm text-slate-200">
-          Waiting for room data...
+      <main class="surface-panel min-w-0 rounded-2xl border border-slate-700 bg-slate-800/75 p-4 sm:p-6">
+        <div id="status-banner" class="status-banner mb-5 flex items-center rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-4 text-sm leading-relaxed text-slate-200">
+          Connecting to the shared game...
         </div>
 
-        <section id="suggestion-panel" class="hidden">
-          <div class="mb-4">
-            <p class="text-sm uppercase tracking-[0.2em] text-violet-300">Suggestion phase</p>
-            <h2 class="mt-2 text-2xl font-bold text-white">Choose one hero for <span id="target-player" class="text-cyan-300"></span></h2>
+        <section id="lobby-panel" class="hidden rounded-2xl border border-slate-700/70 bg-slate-950/30 px-6 py-12 text-center sm:px-10">
+          <div class="brand-mark mx-auto h-14 w-14 rounded-2xl">
+            <svg viewBox="0 0 24 24" fill="none" class="h-7 w-7">
+              <path d="M12 3v18M3 12h18" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/>
+              <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
           </div>
+          <p class="section-eyebrow mt-5 text-[10px] font-bold uppercase">The lobby is open</p>
+          <h2 class="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">Ready when you are</h2>
+          <p class="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">Players suggest heroes for the person who starts the round. The target gets the final pick.</p>
+          <p id="lobby-player-count" class="mt-6 text-xs font-medium text-slate-500"></p>
+        </section>
+
+        <section id="suggestion-panel" class="phase-card hidden">
+          <div class="mb-4">
+            <p class="section-eyebrow text-[10px] font-bold uppercase">Round in progress · Suggest</p>
+            <h2 class="phase-title mt-2 text-2xl font-bold text-white sm:text-3xl">Pick a hero for <span id="target-player" class="text-cyan-300"></span></h2>
+            <p class="mt-2 text-sm text-slate-400">Make your case with a hero pick. The target player makes the final call.</p>
+          </div>
+          <input id="suggestion-search" type="search" autocomplete="off" placeholder="Search heroes by name..." aria-label="Search heroes to suggest" class="search-input mb-5 w-full max-w-md rounded-xl border border-slate-600 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500">
           <div id="hero-grid" class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"></div>
+          <p id="suggestion-empty" class="hidden mt-4 rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-sm text-slate-300">No heroes match your search.</p>
         </section>
 
-        <section id="selection-panel" class="hidden">
+        <section id="selection-panel" class="phase-card hidden">
           <div class="mb-4">
-            <p class="text-sm uppercase tracking-[0.2em] text-cyan-300">Selection phase</p>
-            <h2 class="mt-2 text-2xl font-bold text-white">Pick your preferred hero</h2>
+            <p class="section-eyebrow text-[10px] font-bold uppercase">Your turn · Final pick</p>
+            <h2 class="phase-title mt-2 text-2xl font-bold text-white sm:text-3xl">Choose your hero</h2>
+            <p class="mt-2 text-sm text-slate-400">Your teammates have made their suggestions. Pick the one you want to play.</p>
           </div>
+          <input id="selection-search" type="search" autocomplete="off" placeholder="Search suggested heroes..." aria-label="Search suggested heroes" class="search-input mb-5 w-full max-w-md rounded-xl border border-slate-600 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500">
           <div id="selection-grid" class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"></div>
+          <p id="selection-empty" class="hidden mt-4 rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-sm text-slate-300">No heroes match your search.</p>
         </section>
 
-        <section id="result-panel" class="hidden rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5">
-          <p class="text-sm uppercase tracking-[0.25em] text-emerald-300">Round result</p>
-          <div class="mt-3 flex items-center gap-4">
-            <img id="result-image" class="h-20 w-20 rounded-xl border border-emerald-600 bg-slate-900 object-cover" alt="Selected hero" />
+        <section id="waiting-selection-panel" class="hidden rounded-2xl border border-slate-700/70 bg-slate-950/30 px-6 py-12 text-center sm:px-10">
+          <div class="brand-mark mx-auto h-14 w-14 rounded-2xl">
+            <svg viewBox="0 0 24 24" fill="none" class="h-7 w-7">
+              <path d="M12 7v5l3 2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+              <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <p class="section-eyebrow mt-5 text-[10px] font-bold uppercase">Suggestions are in</p>
+          <h2 class="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">Waiting for <span id="waiting-target" class="text-cyan-300">the target player</span></h2>
+          <p class="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">The target player is reviewing the suggestions and choosing their hero.</p>
+        </section>
+
+        <section id="result-panel" class="result-panel hidden rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 sm:p-8">
+          <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">Round result</p>
+          <div class="mt-5 flex items-center gap-5">
+            <img id="result-image" class="h-24 w-24 rounded-2xl border border-emerald-500/30 bg-slate-900 object-cover shadow-lg shadow-emerald-950/30" alt="Selected hero">
             <div>
-              <h3 class="text-2xl font-black text-white" id="result-name"></h3>
-              <p class="text-slate-300">Selected by <span id="result-target" class="text-emerald-300"></span></p>
+              <h3 class="text-3xl font-black tracking-tight text-white" id="result-name"></h3>
+              <p class="mt-1 text-sm text-slate-300">Picked by <span id="result-target" class="font-semibold text-emerald-300"></span></p>
             </div>
           </div>
         </section>
@@ -68,139 +244,198 @@
   </div>
 
   <script>
-    const roomCode = "{{ room_code }}";
-    const username = "{{ username }}";
+    const playerId = {{ player_id | tojson }};
     const heroes = {{ heroes | tojson }};
     const socket = io();
 
+    const renameForm = document.getElementById('rename-form');
+    const playerNameInput = document.getElementById('player-name-input');
+    const playerCount = document.getElementById('player-count');
     const playerList = document.getElementById('player-list');
-    const roomName = document.getElementById('room-name');
     const statusBanner = document.getElementById('status-banner');
+    const startRoundBtn = document.getElementById('start-round-btn');
+    const lobbyPanel = document.getElementById('lobby-panel');
+    const lobbyPlayerCount = document.getElementById('lobby-player-count');
     const suggestionPanel = document.getElementById('suggestion-panel');
     const selectionPanel = document.getElementById('selection-panel');
+    const waitingSelectionPanel = document.getElementById('waiting-selection-panel');
+    const waitingTarget = document.getElementById('waiting-target');
+    const resultPanel = document.getElementById('result-panel');
+    const targetPlayer = document.getElementById('target-player');
     const heroGrid = document.getElementById('hero-grid');
     const selectionGrid = document.getElementById('selection-grid');
-    const resultPanel = document.getElementById('result-panel');
-    const startRoundBtn = document.getElementById('start-round-btn');
-    const targetPlayer = document.getElementById('target-player');
+    const suggestionSearch = document.getElementById('suggestion-search');
+    const selectionSearch = document.getElementById('selection-search');
+    const suggestionEmpty = document.getElementById('suggestion-empty');
+    const selectionEmpty = document.getElementById('selection-empty');
     const resultName = document.getElementById('result-name');
     const resultTarget = document.getElementById('result-target');
     const resultImage = document.getElementById('result-image');
 
-    function heroCardMarkup(heroKey, heroData, buttonLabel) {
+    function heroCardMarkup(heroKey, label) {
+      const hero = heroes[heroKey];
       return `
         <button type="button" data-hero="${heroKey}" class="hero-card group flex w-full flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 text-left transition hover:border-cyan-500 hover:bg-slate-800">
-          <img src="/images/${heroKey}.png" alt="${heroData.localized_name}" class="h-24 w-full object-cover object-center" onerror="this.src='https://placehold.co/120x120/0f172a/94a3b8?text=${encodeURIComponent(heroData.localized_name)}'">
-          <div class="flex items-center justify-between gap-3 p-3">
-            <span class="text-sm font-semibold text-white">${heroData.localized_name}</span>
-            <span class="rounded-full border border-slate-600 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">${buttonLabel}</span>
-          </div>
+          <img src="/images/${heroKey}.png" alt="${hero.localized_name}" class="h-24 w-full object-cover object-center">
+          <span class="flex items-center justify-between gap-3 border-t border-white/5 p-3">
+            <span class="text-sm font-semibold text-white">${hero.localized_name}</span>
+            <span class="rounded-full border border-slate-600 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">${label}</span>
+          </span>
         </button>
       `;
     }
 
-    function renderPlayers(players) {
-      playerList.innerHTML = players.map((player) => {
-        const badge = player.is_host ? '<span class="rounded-full bg-cyan-500/20 text-cyan-300 px-2 py-1 text-[10px] uppercase tracking-[0.15em]">Host</span>' : '';
-        const target = player.is_target ? '<span class="rounded-full bg-violet-500/20 text-violet-300 px-2 py-1 text-[10px] uppercase tracking-[0.15em]">Target</span>' : '';
-        return `
-          <li class="flex items-center justify-between gap-2 rounded-xl border border-slate-700 bg-slate-900/70 p-3">
-            <span class="font-medium text-white">${player.username}</span>
-            <div class="flex gap-1">${badge}${target}</div>
-          </li>
-        `;
-      }).join('');
+    function filterHeroGrid(grid, emptyMessage, query) {
+      const normalizedQuery = query.trim().toLocaleLowerCase();
+      let visibleCount = 0;
+      grid.querySelectorAll('[data-hero]').forEach((button) => {
+        const matches = button.textContent.toLocaleLowerCase().includes(normalizedQuery);
+        button.classList.toggle('hidden', !matches);
+        if (matches) visibleCount += 1;
+      });
+      emptyMessage.classList.toggle('hidden', visibleCount > 0 || grid.childElementCount === 0);
     }
 
-    function renderRoom(room) {
-      roomName.textContent = `Room ${room.code}`;
-      renderPlayers(room.players);
-      statusBanner.textContent = room.message || 'Waiting for players...';
+    function renderPlayers(players) {
+      const onlineCount = players.filter((player) => player.is_connected).length;
+      playerCount.textContent = `${onlineCount} online`;
+      playerList.replaceChildren();
+      players.forEach((player) => {
+        const item = document.createElement('li');
+        item.className = `player-row flex items-center justify-between gap-2 rounded-xl border border-slate-700 bg-slate-900/70 p-3 ${player.is_connected ? '' : 'opacity-60'}`;
+
+        const details = document.createElement('span');
+        details.className = 'flex min-w-0 items-center gap-2';
+        const name = document.createElement('span');
+        name.className = 'truncate font-medium text-white';
+        name.textContent = `${player.username}${player.id === playerId ? ' (you)' : ''}`;
+        details.append(name);
+
+        if (player.last_hero) {
+          const hero = document.createElement('span');
+          hero.className = 'flex shrink-0 items-center gap-1 text-xs text-slate-300';
+          const image = document.createElement('img');
+          image.src = `/images/${player.last_hero}.png`;
+          image.alt = '';
+          image.className = 'h-6 w-6 rounded object-cover';
+          hero.append(image, document.createTextNode(heroes[player.last_hero].localized_name));
+          details.append(hero);
+        }
+
+        const badges = document.createElement('span');
+        badges.className = 'flex items-center gap-2';
+        if (player.is_target) {
+          const target = document.createElement('span');
+          target.className = 'rounded-full bg-violet-500/20 px-2 py-1 text-[10px] uppercase tracking-[0.15em] text-violet-300';
+          target.textContent = 'Target';
+          badges.append(target);
+        }
+        if (!player.is_connected) {
+          const reconnecting = document.createElement('span');
+          reconnecting.className = 'text-xs text-slate-400';
+          reconnecting.textContent = 'Reconnecting...';
+          badges.append(reconnecting);
+        }
+
+        item.append(details, badges);
+        playerList.append(item);
+      });
+    }
+
+    function renderRoom(game) {
+      renderPlayers(game.players);
+      const currentPlayer = game.players.find((player) => player.id === playerId);
+      if (currentPlayer && document.activeElement !== playerNameInput) {
+        playerNameInput.value = currentPlayer.username;
+      }
+      statusBanner.textContent = game.message;
+      startRoundBtn.classList.toggle('hidden', !game.can_start);
+      startRoundBtn.textContent = game.state === 'complete' ? 'Start next round' : 'Start round';
+      lobbyPanel.classList.toggle('hidden', game.state !== 'lobby');
+      const onlinePlayers = game.players.filter((player) => player.is_connected).length;
+      lobbyPlayerCount.textContent = onlinePlayers < 2
+        ? `Waiting for ${2 - onlinePlayers} more player${2 - onlinePlayers === 1 ? '' : 's'} to start`
+        : `${onlinePlayers} players in the game`;
       suggestionPanel.classList.add('hidden');
       selectionPanel.classList.add('hidden');
+      waitingSelectionPanel.classList.add('hidden');
       resultPanel.classList.add('hidden');
-      heroGrid.innerHTML = '';
-      selectionGrid.innerHTML = '';
+      heroGrid.replaceChildren();
+      selectionGrid.replaceChildren();
 
-      const isHost = room.host === username;
-      startRoundBtn.classList.toggle('hidden', !(isHost && room.state === 'lobby' && room.players.length >= 2));
-
-      if (room.state === 'suggesting') {
+      if (game.state === 'suggesting') {
         suggestionPanel.classList.remove('hidden');
-        targetPlayer.textContent = room.target_player;
-        const isTarget = username === room.target_player;
+        suggestionEmpty.classList.add('hidden');
+        const target = game.players.find((player) => player.id === game.target_player);
+        targetPlayer.textContent = target ? target.username : 'the target player';
 
-        if (!isTarget) {
-          heroGrid.innerHTML = Object.entries(heroes).map(([heroKey, heroData]) => {
-            return heroCardMarkup(heroKey, heroData, 'Suggest');
-          }).join('');
-
+        if (playerId !== game.target_player && !game.suggestions[playerId]) {
+          heroGrid.innerHTML = Object.keys(heroes).map((key) => heroCardMarkup(key, 'Suggest')).join('');
+          filterHeroGrid(heroGrid, suggestionEmpty, suggestionSearch.value);
           heroGrid.querySelectorAll('[data-hero]').forEach((button) => {
             button.addEventListener('click', () => {
-              const heroKey = button.dataset.hero;
-              socket.emit('submit_suggestion', { room_code: room.code, username, hero_key: heroKey });
+              socket.emit('submit_suggestion', { hero_key: button.dataset.hero });
+              button.disabled = true;
             });
           });
+        } else if (playerId !== game.target_player) {
+          heroGrid.innerHTML = '<p class="col-span-full rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-slate-300">Your suggestion is in. Waiting for the other players.</p>';
         } else {
-          heroGrid.innerHTML = '<div class="col-span-full rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-slate-300">Waiting for other players to submit their suggestions.</div>';
+          heroGrid.innerHTML = '<p class="col-span-full rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-slate-300">Waiting for the other players to suggest heroes.</p>';
         }
       }
 
-      if (room.state === 'choosing') {
-        selectionPanel.classList.remove('hidden');
-        if (username === room.target_player) {
-          const options = room.selection_options || [];
-          selectionGrid.innerHTML = options.map((option) => {
-            return heroCardMarkup(option.hero_key, heroes[option.hero_key], 'Pick');
-          }).join('');
-
+      if (game.state === 'choosing') {
+        if (playerId === game.target_player) {
+          selectionPanel.classList.remove('hidden');
+          selectionEmpty.classList.add('hidden');
+          selectionGrid.innerHTML = game.selection_options.map((option) => heroCardMarkup(option.hero_key, 'Pick')).join('');
+          filterHeroGrid(selectionGrid, selectionEmpty, selectionSearch.value);
           selectionGrid.querySelectorAll('[data-hero]').forEach((button) => {
             button.addEventListener('click', () => {
-              const heroKey = button.dataset.hero;
-              socket.emit('choose_suggestion', { room_code: room.code, username, hero_key: heroKey });
+              socket.emit('choose_suggestion', { hero_key: button.dataset.hero });
+              button.disabled = true;
             });
           });
         } else {
-          selectionGrid.innerHTML = '<div class="col-span-full rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-slate-300">The target player is choosing the winning hero.</div>';
+          waitingSelectionPanel.classList.remove('hidden');
+          const target = game.players.find((player) => player.id === game.target_player);
+          waitingTarget.textContent = target ? target.username : 'the target player';
         }
       }
 
-      if (room.state === 'complete' && room.winner) {
+      if (game.state === 'complete' && game.winner) {
         resultPanel.classList.remove('hidden');
-        resultName.textContent = room.winner.hero_name;
-        resultTarget.textContent = room.winner.selected_by;
-        resultImage.src = room.winner.image_path;
+        resultName.textContent = game.winner.hero_name;
+        resultTarget.textContent = game.winner.selected_by;
+        resultImage.src = game.winner.image_path;
       }
     }
 
-    startRoundBtn.addEventListener('click', () => {
-      socket.emit('start_round', { room_code: roomCode, username });
+    renameForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      socket.emit('rename_player', { username: playerNameInput.value });
     });
-
-    socket.on('connect', () => {
-      socket.emit('join_room', { room_code: roomCode, username });
+    suggestionSearch.addEventListener('input', () => {
+      filterHeroGrid(heroGrid, suggestionEmpty, suggestionSearch.value);
     });
-
-    socket.on('join_success', (payload) => {
-      console.log('Joined room', payload);
+    selectionSearch.addEventListener('input', () => {
+      filterHeroGrid(selectionGrid, selectionEmpty, selectionSearch.value);
     });
-
-    socket.on('join_error', (payload) => {
-      statusBanner.textContent = payload.message;
+    startRoundBtn.addEventListener('click', () => socket.emit('start_round'));
+    socket.on('connect', () => socket.emit('join_game'));
+    socket.on('join_error', (error) => {
+      statusBanner.textContent = error.message;
       statusBanner.classList.add('text-red-300');
     });
-
-    socket.on('room_state', (room) => {
-      renderRoom(room);
+    socket.on('rename_success', (player) => {
+      playerNameInput.value = player.username;
     });
-
-    socket.on('round_result', (winner) => {
-      statusBanner.textContent = `${winner.selected_by} chose ${winner.hero_name}.`;
-      resultPanel.classList.remove('hidden');
-      resultName.textContent = winner.hero_name;
-      resultTarget.textContent = winner.selected_by;
-      resultImage.src = winner.image_path;
+    socket.on('rename_error', (error) => {
+      statusBanner.textContent = error.message;
+      statusBanner.classList.add('text-red-300');
     });
+    socket.on('game_state', renderRoom);
   </script>
 </body>
 </html>
