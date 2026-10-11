@@ -1,0 +1,63 @@
+{
+  "troll_suggestions": [
+    {
+      "id": 1,
+      "burmese": "မင်းကိစ္စ မင်းရှင်း… Meepo / Chen ပဲ ဆော့တော့!",
+      "english": "Your problem now... just play Meepo / Chen!"
+    },
+    {
+      "id": 2,
+      "burmese": "မင်းအတွက် သီးသန့်ရွေးပေးထားတာ၊ Invoker နဲ့ ငိုလိုက်တော့!",
+      "english": "Specially picked for you, go cry with Invoker!"
+    },
+    {
+      "id": 3,
+      "burmese": "ဒီပွဲတော့ ခေါင်းကိုက်ရမယ့်အလှည့် ရောက်ပြီ!",
+      "english": "It's your turn to get a severe headache this match!"
+    },
+    {
+      "id": 4,
+      "burmese": "ဆရာကြီးစတိုင်ဖမ်းလို့ရပြီ... Earth Spirit သာဆော့!",
+      "english": "Time to act like a pro... just play Earth Spirit!"
+    }
+  ],
+  "waiting_for_pick": [
+    {
+      "id": 5,
+      "burmese": "အကြာကြီး စဉ်းစားမနေနဲ့၊ ဘာပဲရွေးရွေး ရှုံးမှာပဲ!",
+      "english": "Don't think too long, whichever you pick you're gonna lose anyway!"
+    },
+    {
+      "id": 6,
+      "burmese": "မြန်မြန် Lock ရိုက်စမ်းပါ… ရေနွေးကြိုလို့တောင် ကျက်တော့မယ်!",
+      "english": "Lock in quickly... even boiling water would be done by now!"
+    },
+    {
+      "id": 7,
+      "burmese": "လက်ဆတုန်နေပြီလား? မြန်မြန်ရွေးစမ်းပါ!",
+      "english": "Are your hands shaking? Pick fast!"
+    }
+  ],
+  "hero_locked_in": [
+    {
+      "id": 8,
+      "burmese": "ဒီ Hero နဲ့ သာ ရှုံးကြည့်… Report 4 စောင် အသင့်ပဲ!",
+      "english": "If you lose with this hero... 4 reports are waiting for you!"
+    },
+    {
+      "id": 9,
+      "burmese": "စပွဲမစခင်ကတည်းက GG လို့ အော်လို့ရပြီလား?",
+      "english": "Can we call GG before the match even starts?"
+    },
+    {
+      "id": 10,
+      "burmese": "ငိုမနေနဲ့တော့၊ ဆော့ရမှာပဲ!",
+      "english": "Stop crying, you gotta play it anyway!"
+    },
+    {
+      "id": 11,
+      "burmese": "ပွဲထဲကျမှ Mid မလုကြနဲ့နော်!",
+      "english": "Don't fight for Mid once we get in game!"
+    }
+  ]
+}

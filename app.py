@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import uuid
 
 from flask import Flask, render_template, request, send_from_directory, session
@@ -14,6 +15,13 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 with open(os.path.join(BASE_DIR, "heroes_data.json"), "r", encoding="utf-8") as f:
     HEROES = json.load(f)
 
+with open(
+    os.path.join(BASE_DIR, "funny_dota_2_banter_quotes.json"),
+    "r",
+    encoding="utf-8",
+) as f:
+    BANTER_QUOTES = json.load(f)
+
 game = {
     "players": {},
     "next_player_number": 1,
@@ -23,9 +31,20 @@ game = {
     "suggestions": {},
     "selection_options": [],
     "winner": None,
+    "banter_quote": None,
     "message": "The shared game is open. Start a round when at least two players are here.",
 }
 RECONNECT_GRACE_SECONDS = 30
+
+
+def set_banter_quote(category):
+    quotes = BANTER_QUOTES.get(category, [])
+    if not quotes:
+        raise ValueError(f"No banter quotes configured for category: {category}")
+
+    previous_id = (game.get("banter_quote") or {}).get("id")
+    candidates = [quote for quote in quotes if quote.get("id") != previous_id]
+    game["banter_quote"] = random.choice(candidates or quotes)
 
 
 def game_snapshot(player_id):
@@ -47,6 +66,7 @@ def game_snapshot(player_id):
         "suggestions": game["suggestions"],
         "selection_options": game["selection_options"],
         "winner": game["winner"],
+        "banter_quote": game["banter_quote"],
         "message": game["message"],
         "my_player_id": player_id,
         "can_start": (
@@ -76,6 +96,7 @@ def advance_to_selection():
         return
 
     game["state"] = "choosing"
+    set_banter_quote("waiting_for_pick")
     game["selection_options"] = [
         {
             "player_id": player_id,
@@ -112,6 +133,7 @@ def start_round(player_id):
     game["suggestions"] = {}
     game["selection_options"] = []
     game["winner"] = None
+    set_banter_quote("troll_suggestions")
     target_name = game["players"][target]["username"]
     game["message"] = f"{target_name} started the round and is the target. Everyone else should suggest one hero."
     emit_game_state()
@@ -217,6 +239,7 @@ def handle_submit_suggestion(data):
         return
 
     game["suggestions"][player_id] = hero_key
+    set_banter_quote("troll_suggestions")
     game["message"] = (
         f"{game['players'][player_id]['username']} submitted a suggestion. "
         "Waiting for the remaining players."
@@ -244,6 +267,7 @@ def handle_choose_suggestion(data):
     }
     game["players"][player_id]["last_hero"] = hero_key
     game["state"] = "complete"
+    set_banter_quote("hero_locked_in")
     game["message"] = f"{target_name} picked {HEROES[hero_key]['localized_name']}!"
     active_players = {
         active_player_id

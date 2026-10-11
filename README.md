@@ -14,6 +14,7 @@ A lightweight Flask + Socket.IO Dota 2 peer-suggestion game. Visitors are automa
 - Suggestion phase for every non-target player
 - Selection phase for the target player
 - Search hero names while suggesting or choosing
+- Random English and Burmese banter quotes that change as players make picks
 - Dota 2 hero art served locally from the project asset folder
 
 ## Project structure

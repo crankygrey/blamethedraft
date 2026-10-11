@@ -174,7 +174,8 @@
       <div class="min-w-0 py-2">
         <p class="section-eyebrow text-[10px] font-bold uppercase">The official post-game refreshment</p>
         <h2 class="mt-1 text-lg font-extrabold tracking-tight text-white sm:text-2xl">Your tears, served fresh.</h2>
-        <p class="mt-1 text-xs leading-relaxed text-slate-400 sm:text-sm">A little friendly Dota banter while the picks are being made.</p>
+        <p id="banter-english" lang="en" class="mt-1 text-xs font-medium leading-relaxed text-slate-200 sm:text-sm">A little friendly Dota banter while the picks are being made.</p>
+        <p id="banter-burmese" lang="my" class="mt-1 text-xs leading-relaxed text-slate-400 sm:text-sm"></p>
       </div>
       <span class="ml-auto hidden shrink-0 rounded-full border border-cyan-300/15 bg-cyan-300/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-100/70 sm:block">Stay hydrated</span>
     </aside>
@@ -276,6 +277,8 @@
     const resultName = document.getElementById('result-name');
     const resultTarget = document.getElementById('result-target');
     const resultImage = document.getElementById('result-image');
+    const banterEnglish = document.getElementById('banter-english');
+    const banterBurmese = document.getElementById('banter-burmese');
 
     function heroCardMarkup(heroKey, label) {
       const hero = heroes[heroKey];
@@ -349,6 +352,10 @@
 
     function renderRoom(game) {
       renderPlayers(game.players);
+      if (game.banter_quote) {
+        banterEnglish.textContent = game.banter_quote.english;
+        banterBurmese.textContent = game.banter_quote.burmese;
+      }
       const currentPlayer = game.players.find((player) => player.id === playerId);
       if (currentPlayer && document.activeElement !== playerNameInput) {
         playerNameInput.value = currentPlayer.username;
