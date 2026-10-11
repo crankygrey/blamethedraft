@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vote to Play Room</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    body { background: radial-gradient(circle at top, #0f172a, #020617 55%); }
+    .hero-card { position: relative; overflow: hidden; }
+    .hero-card img { transition: transform 0.2s ease; }
+    .hero-card:hover img { transform: scale(1.04); }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100">
+  <div class="mx-auto max-w-7xl px-4 py-8">
+    <header class="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-slate-700 bg-slate-800/90 p-5 shadow-lg shadow-slate-950/30 md:flex-row md:items-center">
+      <div>
+        <p class="text-xs uppercase tracking-[0.25em] text-cyan-400">Room</p>
+        <h1 id="room-name" class="mt-2 text-3xl font-black tracking-tight text-white">Room</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="rounded-full border border-slate-600 bg-slate-900 px-3 py-1 text-sm font-medium text-slate-300">Username: <span id="player-name">{{ username }}</span></span>
+        <button id="start-round-btn" class="hidden rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-400">Start round</button>
+      </div>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-[280px,1fr]">
+      <aside class="rounded-2xl border border-slate-700 bg-slate-800/75 p-5">
+        <h2 class="mb-4 text-xl font-bold text-white">Players</h2>
+        <ul id="player-list" class="space-y-3"></ul>
+      </aside>
+
+      <main class="rounded-2xl border border-slate-700 bg-slate-800/75 p-5">
+        <div id="status-banner" class="mb-6 rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm text-slate-200">
+          Waiting for room data...
+        </div>
+
+        <section id="suggestion-panel" class="hidden">
+          <div class="mb-4">
+            <p class="text-sm uppercase tracking-[0.2em] text-violet-300">Suggestion phase</p>
+            <h2 class="mt-2 text-2xl font-bold text-white">Choose one hero for <span id="target-player" class="text-cyan-300"></span></h2>
+          </div>
+          <div id="hero-grid" class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"></div>
+        </section>
+
+        <section id="selection-panel" class="hidden">
+          <div class="mb-4">
+            <p class="text-sm uppercase tracking-[0.2em] text-cyan-300">Selection phase</p>
+            <h2 class="mt-2 text-2xl font-bold text-white">Pick your preferred hero</h2>
+          </div>
+          <div id="selection-grid" class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"></div>
+        </section>
+
+        <section id="result-panel" class="hidden rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5">
+          <p class="text-sm uppercase tracking-[0.25em] text-emerald-300">Round result</p>
+          <div class="mt-3 flex items-center gap-4">
+            <img id="result-image" class="h-20 w-20 rounded-xl border border-emerald-600 bg-slate-900 object-cover" alt="Selected hero" />
+            <div>
+              <h3 class="text-2xl font-black text-white" id="result-name"></h3>
+              <p class="text-slate-300">Selected by <span id="result-target" class="text-emerald-300"></span></p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const roomCode = "{{ room_code }}";
+    const username = "{{ username }}";
+    const heroes = {{ heroes | tojson }};
+    const socket = io();
+
+    const playerList = document.getElementById('player-list');
+    const roomName = document.getElementById('room-name');
+    const statusBanner = document.getElementById('status-banner');
+    const suggestionPanel = document.getElementById('suggestion-panel');
+    const selectionPanel = document.getElementById('selection-panel');
+    const heroGrid = document.getElementById('hero-grid');
+    const selectionGrid = document.getElementById('selection-grid');
+    const resultPanel = document.getElementById('result-panel');
+    const startRoundBtn = document.getElementById('start-round-btn');
+    const targetPlayer = document.getElementById('target-player');
+    const resultName = document.getElementById('result-name');
+    const resultTarget = document.getElementById('result-target');
+    const resultImage = document.getElementById('result-image');
+
+    function heroCardMarkup(heroKey, heroData, buttonLabel) {
+      return `
+        <button type="button" data-hero="${heroKey}" class="hero-card group flex w-full flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 text-left transition hover:border-cyan-500 hover:bg-slate-800">
+          <img src="/images/${heroKey}.png" alt="${heroData.localized_name}" class="h-24 w-full object-cover object-center" onerror="this.src='https://placehold.co/120x120/0f172a/94a3b8?text=${encodeURIComponent(heroData.localized_name)}'">
+          <div class="flex items-center justify-between gap-3 p-3">
+            <span class="text-sm font-semibold text-white">${heroData.localized_name}</span>
+            <span class="rounded-full border border-slate-600 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">${buttonLabel}</span>
+          </div>
+        </button>
+      `;
+    }
+
+    function renderPlayers(players) {
+      playerList.innerHTML = players.map((player) => {
+        const badge = player.is_host ? '<span class="rounded-full bg-cyan-500/20 text-cyan-300 px-2 py-1 text-[10px] uppercase tracking-[0.15em]">Host</span>' : '';
+        const target = player.is_target ? '<span class="rounded-full bg-violet-500/20 text-violet-300 px-2 py-1 text-[10px] uppercase tracking-[0.15em]">Target</span>' : '';
+        return `
+          <li class="flex items-center justify-between gap-2 rounded-xl border border-slate-700 bg-slate-900/70 p-3">
+            <span class="font-medium text-white">${player.username}</span>
+            <div class="flex gap-1">${badge}${target}</div>
+          </li>
+        `;
+      }).join('');
+    }
+
+    function renderRoom(room) {
+      roomName.textContent = `Room ${room.code}`;
+      renderPlayers(room.players);
+      statusBanner.textContent = room.message || 'Waiting for players...';
+      suggestionPanel.classList.add('hidden');
+      selectionPanel.classList.add('hidden');
+      resultPanel.classList.add('hidden');
+      heroGrid.innerHTML = '';
+      selectionGrid.innerHTML = '';
+
+      const isHost = room.host === username;
+      startRoundBtn.classList.toggle('hidden', !(isHost && room.state === 'lobby' && room.players.length >= 2));
+
+      if (room.state === 'suggesting') {
+        suggestionPanel.classList.remove('hidden');
+        targetPlayer.textContent = room.target_player;
+        const isTarget = username === room.target_player;
+
+        if (!isTarget) {
+          heroGrid.innerHTML = Object.entries(heroes).map(([heroKey, heroData]) => {
+            return heroCardMarkup(heroKey, heroData, 'Suggest');
+          }).join('');
+
+          heroGrid.querySelectorAll('[data-hero]').forEach((button) => {
+            button.addEventListener('click', () => {
+              const heroKey = button.dataset.hero;
+              socket.emit('submit_suggestion', { room_code: room.code, username, hero_key: heroKey });
+            });
+          });
+        } else {
+          heroGrid.innerHTML = '<div class="col-span-full rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-slate-300">Waiting for other players to submit their suggestions.</div>';
+        }
+      }
+
+      if (room.state === 'choosing') {
+        selectionPanel.classList.remove('hidden');
+        if (username === room.target_player) {
+          const options = room.selection_options || [];
+          selectionGrid.innerHTML = options.map((option) => {
+            return heroCardMarkup(option.hero_key, heroes[option.hero_key], 'Pick');
+          }).join('');
+
+          selectionGrid.querySelectorAll('[data-hero]').forEach((button) => {
+            button.addEventListener('click', () => {
+              const heroKey = button.dataset.hero;
+              socket.emit('choose_suggestion', { room_code: room.code, username, hero_key: heroKey });
+            });
+          });
+        } else {
+          selectionGrid.innerHTML = '<div class="col-span-full rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-slate-300">The target player is choosing the winning hero.</div>';
+        }
+      }
+
+      if (room.state === 'complete' && room.winner) {
+        resultPanel.classList.remove('hidden');
+        resultName.textContent = room.winner.hero_name;
+        resultTarget.textContent = room.winner.selected_by;
+        resultImage.src = room.winner.image_path;
+      }
+    }
+
+    startRoundBtn.addEventListener('click', () => {
+      socket.emit('start_round', { room_code: roomCode, username });
+    });
+
+    socket.on('connect', () => {
+      socket.emit('join_room', { room_code: roomCode, username });
+    });
+
+    socket.on('join_success', (payload) => {
+      console.log('Joined room', payload);
+    });
+
+    socket.on('join_error', (payload) => {
+      statusBanner.textContent = payload.message;
+      statusBanner.classList.add('text-red-300');
+    });
+
+    socket.on('room_state', (room) => {
+      renderRoom(room);
+    });
+
+    socket.on('round_result', (winner) => {
+      statusBanner.textContent = `${winner.selected_by} chose ${winner.hero_name}.`;
+      resultPanel.classList.remove('hidden');
+      resultName.textContent = winner.hero_name;
+      resultTarget.textContent = winner.selected_by;
+      resultImage.src = winner.image_path;
+    });
+  </script>
+</body>
+</html>
