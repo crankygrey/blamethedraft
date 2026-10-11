@@ -128,6 +128,13 @@ def serve_image(filename):
     return send_from_directory(os.path.join(BASE_DIR, "images"), filename)
 
 
+@app.route("/assets/logo.png")
+@app.route("/assets/jug-drinks-your-tears.png")
+def serve_brand_asset():
+    filename = request.path.rsplit("/", 1)[-1]
+    return send_from_directory(BASE_DIR, filename)
+
+
 @socketio.on("join_game")
 def handle_join_game():
     player_id = session.get("player_id")

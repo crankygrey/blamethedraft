@@ -46,12 +46,18 @@
       height: 46px;
       flex: 0 0 auto;
       place-items: center;
-      border: 1px solid rgba(103, 232, 249, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.74);
       border-radius: 15px;
-      background: linear-gradient(145deg, rgba(8, 145, 178, 0.22), rgba(15, 23, 42, 0.9));
-      color: var(--accent);
+      background: #e2e8f0;
       box-shadow: 0 8px 28px rgba(8, 145, 178, 0.12);
     }
+    .brand-mark img { width: 78%; height: 78%; object-fit: contain; }
+    .tear-banner {
+      border-color: rgba(148, 163, 184, 0.16);
+      background: linear-gradient(100deg, rgba(22, 33, 54, 0.95), rgba(12, 18, 31, 0.94));
+      box-shadow: 0 14px 42px rgba(0, 0, 0, 0.2), inset 0 1px rgba(255, 255, 255, 0.04);
+    }
+    .tear-art { width: 116px; height: 116px; object-fit: cover; object-position: center 42%; }
 
     .section-eyebrow { color: var(--accent); letter-spacing: 0.2em; }
     .rename-form {
@@ -140,6 +146,7 @@
       .rename-form { width: 100%; }
       .rename-input { flex: 1; }
       .hero-card > img { height: 112px; }
+      .tear-art { width: 88px; height: 88px; }
     }
   </style>
 </head>
@@ -148,10 +155,7 @@
     <header class="topbar mb-6 flex flex-col justify-between gap-5 rounded-2xl border border-slate-700 bg-slate-800/90 p-5 sm:p-6 md:flex-row md:items-center">
       <div class="flex items-start gap-4">
         <div class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" class="h-6 w-6">
-            <path d="M12 2.75 20 7.3v9.4l-8 4.55-8-4.55V7.3l8-4.55Z" stroke="currentColor" stroke-width="1.5"/>
-            <path d="m8 8 8 8m0-8-8 8" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/>
-          </svg>
+          <img src="/assets/logo.png" alt="Dota 2">
         </div>
         <div class="min-w-0">
           <p class="section-eyebrow text-[10px] font-bold uppercase">Dota 2 · Party draft</p>
@@ -164,6 +168,16 @@
       </div>
       <button id="start-round-btn" class="start-button hidden rounded-xl px-5 py-3 font-bold text-slate-950">Start round</button>
     </header>
+
+    <aside class="tear-banner mb-6 flex items-center gap-5 overflow-hidden rounded-2xl border p-3 sm:gap-6 sm:p-4" aria-label="A little Dota humor">
+      <img src="/assets/jug-drinks-your-tears.png" alt="Juggernaut enjoying a drink made from your tears" class="tear-art shrink-0 rounded-xl">
+      <div class="min-w-0 py-2">
+        <p class="section-eyebrow text-[10px] font-bold uppercase">The official post-game refreshment</p>
+        <h2 class="mt-1 text-lg font-extrabold tracking-tight text-white sm:text-2xl">Your tears, served fresh.</h2>
+        <p class="mt-1 text-xs leading-relaxed text-slate-400 sm:text-sm">A little friendly Dota banter while the picks are being made.</p>
+      </div>
+      <span class="ml-auto hidden shrink-0 rounded-full border border-cyan-300/15 bg-cyan-300/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-100/70 sm:block">Stay hydrated</span>
+    </aside>
 
     <div class="grid gap-5 lg:grid-cols-[290px,minmax(0,1fr)]">
       <aside class="surface-panel h-fit rounded-2xl border border-slate-700 bg-slate-800/75 p-5 sm:p-6">
@@ -184,10 +198,7 @@
 
         <section id="lobby-panel" class="hidden rounded-2xl border border-slate-700/70 bg-slate-950/30 px-6 py-12 text-center sm:px-10">
           <div class="brand-mark mx-auto h-14 w-14 rounded-2xl">
-            <svg viewBox="0 0 24 24" fill="none" class="h-7 w-7">
-              <path d="M12 3v18M3 12h18" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/>
-              <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
+            <img src="/assets/logo.png" alt="Dota 2">
           </div>
           <p class="section-eyebrow mt-5 text-[10px] font-bold uppercase">The lobby is open</p>
           <h2 class="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">Ready when you are</h2>
@@ -219,10 +230,7 @@
 
         <section id="waiting-selection-panel" class="hidden rounded-2xl border border-slate-700/70 bg-slate-950/30 px-6 py-12 text-center sm:px-10">
           <div class="brand-mark mx-auto h-14 w-14 rounded-2xl">
-            <svg viewBox="0 0 24 24" fill="none" class="h-7 w-7">
-              <path d="M12 7v5l3 2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
-              <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
+            <img src="/assets/logo.png" alt="Dota 2">
           </div>
           <p class="section-eyebrow mt-5 text-[10px] font-bold uppercase">Suggestions are in</p>
           <h2 class="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">Waiting for <span id="waiting-target" class="text-cyan-300">the target player</span></h2>
