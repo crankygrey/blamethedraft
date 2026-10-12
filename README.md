@@ -1,4 +1,4 @@
-# Vote to Play
+# Blame the Draft
 
 A lightweight Flask + Socket.IO Dota 2 peer-suggestion game. Visitors are automatically grouped into one shared game, suggest heroes for a target player, and then let that player choose.
 
