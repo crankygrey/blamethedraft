@@ -12,7 +12,9 @@ A lightweight Flask + Socket.IO Dota 2 peer-suggestion game. Visitors are automa
 - The player who starts the round becomes its target
 - Players who have already been a target cannot start another round until everyone has had a turn
 - Suggestion phase where every non-target player sends two heroes
-- Results view groups the suggested heroes by the player who suggested them
+- A draft board that keeps every player's heroes visible for the whole cycle
+- Board entries are grouped by the player who suggested each hero
+- The board resets once everyone in the game has had a turn as the target
 - The target player chooses their final hero in the Dota client, not in the app
 - Search hero names while suggesting
 - Random English and Burmese banter quotes that change as players make picks

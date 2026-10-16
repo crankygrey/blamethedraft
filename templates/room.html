@@ -138,7 +138,7 @@
           <div class="mb-5">
             <p class="eyebrow text-[10px] font-semibold uppercase">Round in progress · Suggest</p>
             <h2 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Pick two heroes for <span id="target-player" class="text-[#b42318]"></span></h2>
-            <p class="mt-2 text-sm text-slate-500">Choose two heroes, review them, then send. The target makes the final call in game.</p>
+            <p id="suggestion-subcopy" class="mt-2 text-sm text-slate-500">Choose two heroes, review them, then send.</p>
           </div>
 
           <div class="mb-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
@@ -167,11 +167,12 @@
           <p id="waiting-text" class="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500">Everyone else is still choosing two heroes.</p>
         </section>
 
-        <section id="results-panel" class="hidden rounded-2xl border border-slate-200 bg-slate-50/70 p-5 sm:p-7">
-          <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b42318]">Round complete</p>
-          <h2 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Heroes for <span id="results-target" class="text-[#b42318]"></span></h2>
-          <p id="results-summary" class="mt-2 text-sm leading-6 text-slate-500"></p>
-          <div id="results-groups" class="mt-6 grid gap-4 sm:grid-cols-2"></div>
+        <section id="board-panel" class="mt-6 hidden">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Draft board</h2>
+            <span id="board-count" class="text-xs text-slate-400"></span>
+          </div>
+          <div id="board-rounds" class="space-y-4"></div>
         </section>
       </main>
     </div>
@@ -208,10 +209,9 @@
     const waitingEyebrow = document.getElementById('waiting-eyebrow');
     const waitingTitle = document.getElementById('waiting-title');
     const waitingText = document.getElementById('waiting-text');
-    const resultsPanel = document.getElementById('results-panel');
-    const resultsTarget = document.getElementById('results-target');
-    const resultsSummary = document.getElementById('results-summary');
-    const resultsGroups = document.getElementById('results-groups');
+    const boardPanel = document.getElementById('board-panel');
+    const boardCount = document.getElementById('board-count');
+    const boardRounds = document.getElementById('board-rounds');
     const banterEnglish = document.getElementById('banter-english');
     const banterBurmese = document.getElementById('banter-burmese');
 
@@ -354,7 +354,8 @@
           target.className = 'rounded-full bg-[#b42318]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#b42318]';
           target.textContent = 'Target';
           badges.append(target);
-        } else if (!player.is_connected) {
+        }
+        if (!player.is_connected) {
           const offline = document.createElement('span');
           offline.className = 'text-xs text-slate-400';
           offline.textContent = 'Reconnecting...';
@@ -371,27 +372,43 @@
       });
     }
 
-    function renderResults(game) {
-      resultsTarget.textContent = game.target_name || 'the target player';
-      resultsSummary.textContent = game.state === 'complete' && playerId === game.target_player
-        ? 'Pick one of these heroes in the Dota client.'
-        : `${game.target_name || 'The target player'} picks one of these heroes in the Dota client.`;
-      resultsGroups.replaceChildren();
+    function renderBoard(game) {
+      boardRounds.replaceChildren();
+      boardCount.textContent = game.board.length === 1 ? '1 round' : `${game.board.length} rounds`;
 
-      game.results.forEach((group) => {
+      game.board.forEach((round) => {
         const card = document.createElement('article');
-        card.className = 'rounded-xl border border-slate-200 bg-white p-3';
-        const heading = document.createElement('p');
-        heading.className = 'text-xs font-medium text-slate-500';
-        const who = document.createElement('span');
-        who.className = 'font-semibold text-slate-900';
-        who.textContent = group.username + (group.player_id === playerId ? ' (you)' : '');
-        heading.append('Suggested by ', who);
-        const grid = document.createElement('div');
-        grid.className = 'mt-3 grid grid-cols-2 gap-3';
-        grid.innerHTML = group.heroes.map(resultCardMarkup).join('');
-        card.append(heading, grid);
-        resultsGroups.append(card);
+        card.className = 'surface rounded-2xl p-4 sm:p-5';
+
+        const header = document.createElement('div');
+        header.className = 'border-b border-slate-100 pb-3';
+        const eyebrow = document.createElement('p');
+        eyebrow.className = 'eyebrow text-[10px] font-semibold uppercase';
+        eyebrow.textContent = 'Heroes for';
+        const name = document.createElement('h3');
+        name.className = 'mt-1 text-lg font-extrabold tracking-tight text-slate-900';
+        name.textContent = round.target_name + (round.target_player === playerId ? ' (you)' : '');
+        header.append(eyebrow, name);
+
+        const groups = document.createElement('div');
+        groups.className = 'mt-4 grid gap-4 sm:grid-cols-2';
+        round.groups.forEach((group) => {
+          const block = document.createElement('div');
+          const label = document.createElement('p');
+          label.className = 'text-xs font-medium text-slate-500';
+          const who = document.createElement('span');
+          who.className = 'font-semibold text-slate-900';
+          who.textContent = group.username + (group.player_id === playerId ? ' (you)' : '');
+          label.append('Suggested by ', who);
+          const grid = document.createElement('div');
+          grid.className = 'mt-2 grid grid-cols-2 gap-3';
+          grid.innerHTML = group.heroes.map(resultCardMarkup).join('');
+          block.append(label, grid);
+          groups.append(block);
+        });
+
+        card.append(header, groups);
+        boardRounds.append(card);
       });
     }
 
@@ -417,19 +434,18 @@
 
       suggestionPanel.classList.add('hidden');
       waitingPanel.classList.add('hidden');
-      resultsPanel.classList.add('hidden');
 
       if (game.state === 'suggesting') {
         if (playerId === game.target_player) {
           waitingPanel.classList.remove('hidden');
           waitingEyebrow.textContent = 'You are the target';
           waitingTitle.textContent = 'Everyone is choosing two heroes for you';
-          waitingText.textContent = 'All suggestions appear at once, then you pick one in the Dota client.';
+          waitingText.textContent = 'Their heroes show up on the board once everyone has sent theirs.';
         } else if (game.suggestions[playerId]) {
           waitingPanel.classList.remove('hidden');
           waitingEyebrow.textContent = 'Suggestions sent';
           waitingTitle.textContent = 'Waiting for the rest of the party';
-          waitingText.textContent = 'Your two heroes are locked in until the round ends.';
+          waitingText.textContent = 'Your two heroes are locked in until everyone has sent theirs.';
         } else {
           suggestionPanel.classList.remove('hidden');
           suggestionEmpty.classList.add('hidden');
@@ -443,9 +459,14 @@
       }
 
       if (game.state === 'complete') {
-        resultsPanel.classList.remove('hidden');
-        renderResults(game);
+        waitingPanel.classList.remove('hidden');
+        waitingEyebrow.textContent = 'Round complete';
+        waitingTitle.textContent = 'Suggestions are in';
+        waitingText.textContent = 'Start the next round when everyone is ready.';
       }
+
+      boardPanel.classList.toggle('hidden', game.board.length === 0);
+      renderBoard(game);
     }
 
     renameForm.addEventListener('submit', (event) => {

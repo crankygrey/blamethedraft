@@ -31,6 +31,8 @@ game = {
     "target_player": None,
     "target_history": set(),
     "suggestions": {},
+    "board": [],
+    "cycle_complete": False,
     "banter_quote": None,
     "message": "The shared game is open. Start a round when at least two players are here.",
 }
@@ -59,27 +61,7 @@ def game_snapshot(player_id):
     ]
     connected_players = sum(bool(player["sids"]) for player in game["players"].values())
 
-    results = []
-    if game["state"] == "complete":
-        for suggester_id, hero_keys in game["suggestions"].items():
-            suggester = game["players"].get(suggester_id)
-            if suggester is None:
-                continue
-            results.append(
-                {
-                    "player_id": suggester_id,
-                    "username": suggester["username"],
-                    "heroes": [
-                        {
-                            "hero_key": hero_key,
-                            "hero_name": HEROES[hero_key]["localized_name"],
-                            "image_path": f"/images/{hero_key}.png",
-                        }
-                        for hero_key in hero_keys
-                    ],
-                }
-            )
-
+    connected_players = sum(bool(player["sids"]) for player in game["players"].values())
     target = game["players"].get(game["target_player"])
 
     return {
@@ -89,7 +71,7 @@ def game_snapshot(player_id):
         "target_name": target["username"] if target else None,
         "suggestions": game["suggestions"],
         "suggestions_per_player": SUGGESTIONS_PER_PLAYER,
-        "results": results,
+        "board": game["board"],
         "banter_quote": game["banter_quote"],
         "message": game["message"],
         "my_player_id": player_id,
@@ -105,6 +87,29 @@ def emit_game_state():
     for player_id, player in game["players"].items():
         for sid in tuple(player["sids"]):
             socketio.emit("game_state", game_snapshot(player_id), to=sid)
+
+
+def build_round_groups():
+    groups = []
+    for suggester_id, hero_keys in game["suggestions"].items():
+        suggester = game["players"].get(suggester_id)
+        if suggester is None:
+            continue
+        groups.append(
+            {
+                "player_id": suggester_id,
+                "username": suggester["username"],
+                "heroes": [
+                    {
+                        "hero_key": hero_key,
+                        "hero_name": HEROES[hero_key]["localized_name"],
+                        "image_path": f"/images/{hero_key}.png",
+                    }
+                    for hero_key in hero_keys
+                ],
+            }
+        )
+    return groups
 
 
 def complete_round_if_ready():
@@ -123,9 +128,15 @@ def complete_round_if_ready():
     set_banter_quote("hero_locked_in")
     target_name = game["players"][game["target_player"]]["username"]
     total_heroes = sum(len(hero_keys) for hero_keys in game["suggestions"].values())
+    game["board"].append(
+        {
+            "target_player": game["target_player"],
+            "target_name": target_name,
+            "groups": build_round_groups(),
+        }
+    )
     game["message"] = (
-        f"All suggestions are in: {total_heroes} heroes for {target_name}. "
-        f"{target_name} picks one in the Dota client."
+        f"All suggestions are in: {total_heroes} heroes for {target_name}."
     )
 
     active_players = {
@@ -135,6 +146,7 @@ def complete_round_if_ready():
     }
     if active_players.issubset(game["target_history"]):
         game["target_history"].clear()
+        game["cycle_complete"] = True
 
 
 def start_round(player_id):
@@ -151,6 +163,10 @@ def start_round(player_id):
     if player_id not in players or player_id in game["target_history"]:
         return
 
+    if game["cycle_complete"]:
+        game["board"] = []
+        game["cycle_complete"] = False
+
     target = player_id
     game["target_history"].add(target)
     game["state"] = "suggesting"
@@ -160,7 +176,7 @@ def start_round(player_id):
     target_name = game["players"][target]["username"]
     game["message"] = (
         f"{target_name} started the round and is the target. "
-        f"Everyone else should suggest {SUGGESTIONS_PER_PLAYER} heroes."
+        f"Everyone else should send {SUGGESTIONS_PER_PLAYER} heroes."
     )
     emit_game_state()
 
