@@ -4,249 +4,181 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blame the Draft</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="/static/js/tailwind.js"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
   <style>
     :root {
-      color-scheme: dark;
-      --line: rgba(148, 163, 184, 0.14);
-      --accent: #67e8f9;
+      color-scheme: light;
+      --surface-border: #e6e8ec;
+      --brand: #b42318;
     }
 
     body {
-      background:
-        radial-gradient(ellipse at 50% -20%, rgba(8, 145, 178, 0.16), transparent 55%),
-        radial-gradient(ellipse at 100% 40%, rgba(124, 58, 237, 0.08), transparent 38%),
-        #070b14;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f6f7f9;
+      font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     }
 
-    .premium-shell { max-width: 1440px; }
-    .topbar, .surface-panel {
-      border-color: var(--line);
-      background: linear-gradient(145deg, rgba(18, 27, 44, 0.94), rgba(10, 16, 29, 0.94));
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.035);
-      backdrop-filter: blur(18px);
+    .surface {
+      border: 1px solid var(--surface-border);
+      background: #ffffff;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
     }
 
-    .topbar { position: relative; overflow: hidden; }
-    .topbar::after {
-      position: absolute;
-      top: 0;
-      right: 8%;
-      width: 220px;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.65), transparent);
-      content: "";
+    .eyebrow {
+      color: #64748b;
+      letter-spacing: 0.14em;
     }
 
-    .brand-mark {
-      display: grid;
-      width: 46px;
-      height: 46px;
-      flex: 0 0 auto;
-      place-items: center;
-      border: 1px solid rgba(255, 255, 255, 0.74);
-      border-radius: 15px;
-      background: #e2e8f0;
-      box-shadow: 0 8px 28px rgba(8, 145, 178, 0.12);
+    .hero-thumb {
+      transition: filter 220ms ease, transform 220ms ease;
+      filter: saturate(0.9);
     }
-    .brand-mark img { width: 78%; height: 78%; object-fit: contain; }
-    .tear-banner {
-      border-color: rgba(148, 163, 184, 0.16);
-      background: linear-gradient(100deg, rgba(22, 33, 54, 0.95), rgba(12, 18, 31, 0.94));
-      box-shadow: 0 14px 42px rgba(0, 0, 0, 0.2), inset 0 1px rgba(255, 255, 255, 0.04);
+    .hero-card:hover .hero-thumb {
+      filter: saturate(1.05);
+      transform: scale(1.03);
     }
-    .tear-art { width: 116px; height: 116px; object-fit: cover; object-position: center 42%; }
-
-    .section-eyebrow { color: var(--accent); letter-spacing: 0.2em; }
-    .rename-form {
-      width: fit-content;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: rgba(2, 6, 23, 0.42);
-      padding: 4px;
-    }
-
-    .rename-input { min-width: 0; border: 1px solid transparent; background: transparent; }
-    .rename-input:focus { border-color: rgba(103, 232, 249, 0.3); background: rgba(15, 23, 42, 0.8); }
-    .quiet-button { transition: color 160ms ease, border-color 160ms ease, background 160ms ease; }
-    .start-button {
-      min-height: 46px;
-      border: 1px solid rgba(165, 243, 252, 0.6);
-      background: linear-gradient(135deg, #a5f3fc, #22d3ee);
-      box-shadow: 0 8px 24px rgba(34, 211, 238, 0.16);
-      transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
-    }
-    .start-button:hover { transform: translateY(-1px); box-shadow: 0 12px 30px rgba(34, 211, 238, 0.23); filter: brightness(1.04); }
-
-    .surface-panel { border-radius: 22px; }
-    .panel-heading { border-bottom: 1px solid var(--line); padding-bottom: 16px; }
-    .player-row {
-      border-color: rgba(148, 163, 184, 0.1);
-      background: rgba(2, 6, 23, 0.36);
-      transition: border-color 160ms ease, background 160ms ease;
-    }
-    .player-row:hover { border-color: rgba(103, 232, 249, 0.22); background: rgba(15, 23, 42, 0.72); }
-
-    .status-banner {
-      position: relative;
-      min-height: 58px;
-      border-color: rgba(103, 232, 249, 0.13);
-      background: linear-gradient(100deg, rgba(8, 145, 178, 0.09), rgba(15, 23, 42, 0.6) 70%);
-      color: #cbd5e1;
-    }
-    #status-banner { padding-left: 48px; }
-    .status-banner::before {
-      position: absolute;
-      top: 50%;
-      left: 20px;
-      width: 8px;
-      height: 8px;
-      transform: translateY(-50%);
-      border-radius: 999px;
-      background: #22d3ee;
-      box-shadow: 0 0 14px rgba(34, 211, 238, 0.7);
-      content: "";
-    }
-
-    .phase-card { padding: clamp(18px, 3vw, 30px); }
-    .phase-title { letter-spacing: -0.035em; }
-    .search-input {
-      border-color: rgba(148, 163, 184, 0.16);
-      background: rgba(2, 6, 23, 0.5);
-      transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
-    }
-    .search-input:focus { border-color: rgba(103, 232, 249, 0.6); background: rgba(2, 6, 23, 0.8); box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.08); }
 
     .hero-card {
-      border-color: rgba(148, 163, 184, 0.13);
-      background: linear-gradient(155deg, rgba(30, 41, 59, 0.9), rgba(10, 16, 29, 0.96));
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background 160ms ease;
     }
-    .hero-card > img { height: 132px; object-fit: cover; }
-    .hero-card > span { min-height: 58px; }
     .hero-card:hover {
-      transform: translateY(-3px);
-      border-color: rgba(103, 232, 249, 0.58);
-      background: linear-gradient(155deg, rgba(22, 50, 66, 0.95), rgba(10, 16, 29, 0.98));
-      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(103, 232, 249, 0.08);
+      border-color: #cbd5e1;
+      box-shadow: 0 6px 20px rgba(16, 24, 40, 0.08);
     }
-    .hero-card:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-    .hero-card img { transition: transform 240ms ease, filter 240ms ease; filter: saturate(0.86) contrast(1.04); }
-    .hero-card:hover img { transform: scale(1.045); filter: saturate(1.05) contrast(1.04); }
-    .result-panel {
-      border-color: rgba(52, 211, 153, 0.25);
-      background: radial-gradient(ellipse at 0 50%, rgba(16, 185, 129, 0.13), transparent 58%), rgba(2, 6, 23, 0.5);
+    .hero-card:active {
+      transform: translateY(1px);
     }
 
-    @media (max-width: 640px) {
-      .topbar, .surface-panel { border-radius: 18px; }
-      .rename-form { width: 100%; }
-      .rename-input { flex: 1; }
-      .hero-card > img { height: 112px; }
-      .tear-art { width: 88px; height: 88px; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+      .hero-card:hover .hero-thumb { transform: none; }
     }
   </style>
 </head>
-<body class="min-h-screen text-slate-100">
-  <div class="premium-shell mx-auto px-4 py-6 sm:px-6 sm:py-10">
-    <header class="topbar mb-6 flex flex-col justify-between gap-5 rounded-2xl border border-slate-700 bg-slate-800/90 p-5 sm:p-6 md:flex-row md:items-center">
+<body class="min-h-screen text-slate-900 antialiased">
+  <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+
+    <header class="surface mb-5 flex flex-col gap-5 rounded-2xl p-5 sm:p-6 md:flex-row md:items-center md:justify-between">
       <div class="flex items-start gap-4">
-        <div class="brand-mark" aria-hidden="true">
-          <img src="/assets/logo.png" alt="Dota 2">
-        </div>
+        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white" aria-hidden="true">
+          <img src="/assets/logo.png" alt="" class="h-7 w-7 object-contain">
+        </span>
         <div class="min-w-0">
-          <p class="section-eyebrow text-[10px] font-bold uppercase">Dota 2 · Party draft</p>
-          <h1 class="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">Blame the Draft</h1>
-          <form id="rename-form" class="rename-form mt-3 flex flex-wrap items-center gap-2">
-            <label for="player-name-input" class="pl-2 text-xs font-medium text-slate-400">Playing as</label>
-            <input id="player-name-input" type="text" maxlength="20" required class="rename-input w-36 rounded-lg px-2 py-2 text-sm text-white outline-none transition" placeholder="Player name">
-            <button type="submit" class="quiet-button rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-300 hover:border-cyan-400/50 hover:bg-slate-700 hover:text-white">Save</button>
+          <p class="eyebrow text-[10px] font-semibold uppercase">Dota 2 · Party draft</p>
+          <h1 class="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Blame the Draft</h1>
+          <form id="rename-form" class="mt-3 flex w-fit max-w-full items-center gap-2">
+            <label for="player-name-input" class="shrink-0 text-xs font-medium text-slate-500">Playing as</label>
+            <input id="player-name-input" type="text" maxlength="20" required
+              class="w-40 min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-900/15"
+              placeholder="Player name">
+            <button type="submit"
+              class="shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900/15">Save</button>
           </form>
+        </div>
       </div>
-      <button id="start-round-btn" class="start-button hidden rounded-xl px-5 py-3 font-bold text-slate-950">Start round</button>
+      <button id="start-round-btn" class="hidden cursor-pointer rounded-xl bg-slate-900 px-5 py-3 font-bold text-white transition hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:outline-none">Start round</button>
     </header>
 
-    <aside class="tear-banner mb-6 flex items-center gap-5 overflow-hidden rounded-2xl border p-3 sm:gap-6 sm:p-4" aria-label="A little Dota humor">
-      <img src="/assets/jug-drinks-your-tears.png" alt="Juggernaut enjoying a drink made from your tears" class="tear-art shrink-0 rounded-xl">
-      <div class="min-w-0 py-2">
-        <p class="section-eyebrow text-[10px] font-bold uppercase">The official post-game refreshment</p>
-        <h2 class="mt-1 text-lg font-extrabold tracking-tight text-white sm:text-2xl">Your tears, served fresh.</h2>
-        <p id="banter-english" lang="en" class="mt-1 text-xs font-medium leading-relaxed text-slate-200 sm:text-sm">A little friendly Dota banter while the picks are being made.</p>
-        <p id="banter-burmese" lang="my" class="mt-1 text-xs leading-relaxed text-slate-400 sm:text-sm"></p>
+    <aside class="surface mb-5 flex items-center gap-5 overflow-hidden rounded-2xl p-3 sm:gap-6 sm:p-4" aria-label="A little Dota humor">
+      <img src="/assets/jug-drinks-your-tears.png" alt="Juggernaut enjoying a drink made from your tears" class="h-24 w-24 shrink-0 rounded-xl object-cover object-center sm:h-28 sm:w-28">
+      <div class="min-w-0 py-1">
+        <p class="eyebrow text-[10px] font-semibold uppercase">The official post-game refreshment</p>
+        <h2 class="mt-1 text-base font-bold tracking-tight text-slate-900 sm:text-lg">Your tears, served fresh.</h2>
+        <p id="banter-english" lang="en" class="mt-1 text-sm leading-relaxed text-slate-600">A little friendly Dota banter while the picks are being made.</p>
+        <p id="banter-burmese" lang="my" class="mt-0.5 text-sm leading-relaxed text-slate-400"></p>
       </div>
-      <span class="ml-auto hidden shrink-0 rounded-full border border-cyan-300/15 bg-cyan-300/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-100/70 sm:block">Stay hydrated</span>
+      <span class="ml-auto hidden shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:block">Stay hydrated</span>
     </aside>
 
-    <div class="grid gap-5 lg:grid-cols-[290px,minmax(0,1fr)]">
-      <aside class="surface-panel h-fit rounded-2xl border border-slate-700 bg-slate-800/75 p-5 sm:p-6">
-        <div class="panel-heading mb-4 flex items-center justify-between">
+    <div class="grid gap-5 lg:grid-cols-[280px,minmax(0,1fr)]">
+      <aside class="surface h-fit rounded-2xl p-5">
+        <div class="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
           <div>
-            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">In this game</p>
-            <h2 class="mt-1 text-lg font-bold text-white">Players</h2>
+            <p class="eyebrow text-[10px] font-semibold uppercase">In this game</p>
+            <h2 class="mt-1 text-base font-bold tracking-tight text-slate-900">Players</h2>
           </div>
-          <span id="player-count" class="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs font-medium text-slate-400"></span>
+          <span id="player-count" class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-500"></span>
         </div>
-        <ul id="player-list" class="space-y-3"></ul>
+        <ul id="player-list" class="space-y-2"></ul>
       </aside>
 
-      <main class="surface-panel min-w-0 rounded-2xl border border-slate-700 bg-slate-800/75 p-4 sm:p-6">
-        <div id="status-banner" class="status-banner mb-5 flex items-center rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-4 text-sm leading-relaxed text-slate-200">
-          Connecting to the shared game...
+      <main class="surface min-w-0 rounded-2xl p-4 sm:p-6">
+        <div id="status-banner"
+          class="mb-5 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-relaxed text-slate-700"
+          role="status" aria-live="polite">
+          <span class="h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
+          <span>Connecting to the shared game...</span>
         </div>
 
-        <section id="lobby-panel" class="hidden rounded-2xl border border-slate-700/70 bg-slate-950/30 px-6 py-12 text-center sm:px-10">
-          <p class="section-eyebrow text-[10px] font-bold uppercase">The lobby is open</p>
-          <h2 class="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">Ready when you are</h2>
-          <p class="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">Players suggest heroes for the person who starts the round. The target gets the final pick.</p>
-          <p id="lobby-player-count" class="mt-6 text-xs font-medium text-slate-500"></p>
+        <section id="lobby-panel" class="hidden rounded-2xl border border-dashed border-slate-200 px-6 py-12 text-center sm:px-10">
+          <p class="eyebrow text-[10px] font-semibold uppercase">The lobby is open</p>
+          <h2 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Ready when you are</h2>
+          <p class="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500">Every player sends two heroes for the person who starts the round. That person picks one in the Dota client.</p>
+          <p id="lobby-player-count" class="mt-6 text-xs font-medium text-slate-400"></p>
         </section>
 
-        <section id="suggestion-panel" class="phase-card hidden">
-          <div class="mb-4">
-            <p class="section-eyebrow text-[10px] font-bold uppercase">Round in progress · Suggest</p>
-            <h2 class="phase-title mt-2 text-2xl font-bold text-white sm:text-3xl">Pick a hero for <span id="target-player" class="text-cyan-300"></span></h2>
-            <p class="mt-2 text-sm text-slate-400">Make your case with a hero pick. The target player makes the final call.</p>
+        <section id="suggestion-panel" class="hidden">
+          <div class="mb-5">
+            <p class="eyebrow text-[10px] font-semibold uppercase">Round in progress · Suggest</p>
+            <h2 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Pick two heroes for <span id="target-player" class="text-[#b42318]"></span></h2>
+            <p class="mt-2 text-sm text-slate-500">Choose two heroes, review them, then send. The target makes the final call in game.</p>
           </div>
-          <input id="suggestion-search" type="search" autocomplete="off" placeholder="Search heroes by name..." aria-label="Search heroes to suggest" class="search-input mb-5 w-full max-w-md rounded-xl border border-slate-600 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500">
-          <div id="hero-grid" class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"></div>
-          <p id="suggestion-empty" class="hidden mt-4 rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-sm text-slate-300">No heroes match your search.</p>
-        </section>
 
-        <section id="selection-panel" class="phase-card hidden">
-          <div class="mb-4">
-            <p class="section-eyebrow text-[10px] font-bold uppercase">Your turn · Final pick</p>
-            <h2 class="phase-title mt-2 text-2xl font-bold text-white sm:text-3xl">Choose your hero</h2>
-            <p class="mt-2 text-sm text-slate-400">Your teammates have made their suggestions. Pick the one you want to play.</p>
-          </div>
-          <input id="selection-search" type="search" autocomplete="off" placeholder="Search suggested heroes..." aria-label="Search suggested heroes" class="search-input mb-5 w-full max-w-md rounded-xl border border-slate-600 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500">
-          <div id="selection-grid" class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"></div>
-          <p id="selection-empty" class="hidden mt-4 rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-sm text-slate-300">No heroes match your search.</p>
-        </section>
-
-        <section id="waiting-selection-panel" class="hidden rounded-2xl border border-slate-700/70 bg-slate-950/30 px-6 py-12 text-center sm:px-10">
-          <div class="brand-mark mx-auto h-14 w-14 rounded-2xl">
-            <img src="/assets/logo.png" alt="Dota 2">
-          </div>
-          <p class="section-eyebrow mt-5 text-[10px] font-bold uppercase">Suggestions are in</p>
-          <h2 class="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">Waiting for <span id="waiting-target" class="text-cyan-300">the target player</span></h2>
-          <p class="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">The target player is reviewing the suggestions and choosing their hero.</p>
-        </section>
-
-        <section id="result-panel" class="result-panel hidden rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 sm:p-8">
-          <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">Round result</p>
-          <div class="mt-5 flex items-center gap-5">
-            <img id="result-image" class="h-24 w-24 rounded-2xl border border-emerald-500/30 bg-slate-900 object-cover shadow-lg shadow-emerald-950/30" alt="Selected hero">
-            <div>
-              <h3 class="text-3xl font-black tracking-tight text-white" id="result-name"></h3>
-              <p class="mt-1 text-sm text-slate-300">Picked by <span id="result-target" class="font-semibold text-emerald-300"></span></p>
+          <div class="mb-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Your suggestions</p>
+              <p id="suggestion-hint" class="text-xs font-medium text-slate-500"></span></p>
             </div>
+            <div id="suggestion-slots" class="mt-3 grid grid-cols-2 gap-3 sm:max-w-sm"></div>
+            <button id="suggestion-submit-btn" disabled
+              class="mt-4 w-full cursor-pointer rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto">Send suggestions</button>
           </div>
+
+          <input id="suggestion-search" type="search" autocomplete="off" placeholder="Search heroes by name..."
+            aria-label="Search heroes to suggest"
+            class="mb-4 w-full max-w-md rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus-visible:ring-2 focus-visible:ring-slate-900/15">
+          <div id="hero-grid" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"></div>
+          <p id="suggestion-empty" class="mt-4 hidden rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">No heroes match your search.</p>
+        </section>
+
+        <section id="waiting-panel" class="hidden rounded-2xl border border-dashed border-slate-200 px-6 py-14 text-center sm:px-10">
+          <span class="mx-auto grid h-12 w-12 place-items-center rounded-xl border border-slate-200 bg-white" aria-hidden="true">
+            <img src="/assets/logo.png" alt="" class="h-7 w-7 object-contain">
+          </span>
+          <p id="waiting-eyebrow" class="eyebrow mt-5 text-[10px] font-semibold uppercase">Suggestions are in</p>
+          <h2 id="waiting-title" class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Waiting for the rest of the party</h2>
+          <p id="waiting-text" class="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500">Everyone else is still choosing two heroes.</p>
+        </section>
+
+        <section id="results-panel" class="hidden rounded-2xl border border-slate-200 bg-slate-50/70 p-5 sm:p-7">
+          <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b42318]">Round complete</p>
+          <h2 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Heroes for <span id="results-target" class="text-[#b42318]"></span></h2>
+          <p id="results-summary" class="mt-2 text-sm leading-6 text-slate-500"></p>
+          <div id="results-groups" class="mt-6 grid gap-4 sm:grid-cols-2"></div>
         </section>
       </main>
     </div>
+
+    <footer class="mt-6 text-center text-xs text-slate-400">
+      Friendly drafts, blame-free results.
+    </footer>
   </div>
 
   <script>
@@ -259,37 +191,68 @@
     const playerCount = document.getElementById('player-count');
     const playerList = document.getElementById('player-list');
     const statusBanner = document.getElementById('status-banner');
+    const statusBannerText = statusBanner.querySelector('span:last-child');
+    const statusBannerDot = statusBanner.querySelector('span:first-child');
     const startRoundBtn = document.getElementById('start-round-btn');
     const lobbyPanel = document.getElementById('lobby-panel');
     const lobbyPlayerCount = document.getElementById('lobby-player-count');
     const suggestionPanel = document.getElementById('suggestion-panel');
-    const selectionPanel = document.getElementById('selection-panel');
-    const waitingSelectionPanel = document.getElementById('waiting-selection-panel');
-    const waitingTarget = document.getElementById('waiting-target');
-    const resultPanel = document.getElementById('result-panel');
-    const targetPlayer = document.getElementById('target-player');
-    const heroGrid = document.getElementById('hero-grid');
-    const selectionGrid = document.getElementById('selection-grid');
+    const suggestionSlots = document.getElementById('suggestion-slots');
+    const suggestionSubmitBtn = document.getElementById('suggestion-submit-btn');
+    const suggestionHint = document.getElementById('suggestion-hint');
     const suggestionSearch = document.getElementById('suggestion-search');
-    const selectionSearch = document.getElementById('selection-search');
     const suggestionEmpty = document.getElementById('suggestion-empty');
-    const selectionEmpty = document.getElementById('selection-empty');
-    const resultName = document.getElementById('result-name');
-    const resultTarget = document.getElementById('result-target');
-    const resultImage = document.getElementById('result-image');
+    const heroGrid = document.getElementById('hero-grid');
+    const targetPlayer = document.getElementById('target-player');
+    const waitingPanel = document.getElementById('waiting-panel');
+    const waitingEyebrow = document.getElementById('waiting-eyebrow');
+    const waitingTitle = document.getElementById('waiting-title');
+    const waitingText = document.getElementById('waiting-text');
+    const resultsPanel = document.getElementById('results-panel');
+    const resultsTarget = document.getElementById('results-target');
+    const resultsSummary = document.getElementById('results-summary');
+    const resultsGroups = document.getElementById('results-groups');
     const banterEnglish = document.getElementById('banter-english');
     const banterBurmese = document.getElementById('banter-burmese');
 
-    function heroCardMarkup(heroKey, label) {
+    let picks = [];
+    let suggestionsPerPlayer = 2;
+
+    function setStatus(message, isError = false) {
+      statusBannerText.textContent = message;
+      statusBanner.classList.toggle('border-red-200', isError);
+      statusBanner.classList.toggle('bg-red-50', isError);
+      statusBanner.classList.toggle('text-red-700', isError);
+      statusBannerDot.classList.toggle('bg-red-500', isError);
+    }
+
+    function heroCardMarkup(heroKey, label, pickedIndex) {
       const hero = heroes[heroKey];
+      const picked = pickedIndex !== null && pickedIndex !== undefined;
+      const cardClass = picked
+        ? 'border-[#b42318] bg-[#b42318]/5 shadow-sm'
+        : 'border-slate-200 bg-white';
+      const badge = picked
+        ? `<span class="shrink-0 rounded-full bg-[#b42318] px-2 py-0.5 text-[10px] font-semibold text-white">${pickedIndex + 1}</span>`
+        : `<span class="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">${label}</span>`;
       return `
-        <button type="button" data-hero="${heroKey}" class="hero-card group flex w-full flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 text-left transition hover:border-cyan-500 hover:bg-slate-800">
-          <img src="/images/${heroKey}.png" alt="${hero.localized_name}" class="h-24 w-full object-cover object-center">
-          <span class="flex items-center justify-between gap-3 border-t border-white/5 p-3">
-            <span class="text-sm font-semibold text-white">${hero.localized_name}</span>
-            <span class="rounded-full border border-slate-600 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">${label}</span>
+        <button type="button" data-hero="${heroKey}" data-name="${hero.localized_name.toLowerCase()}" aria-pressed="${picked}"
+          class="hero-card group flex w-full cursor-pointer flex-col overflow-hidden rounded-2xl border ${cardClass} text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b42318]/40">
+          <img src="/images/${heroKey}.png" alt="" class="hero-thumb h-28 w-full object-cover object-center sm:h-32">
+          <span class="flex items-center justify-between gap-2 border-t border-slate-100 p-2.5">
+            <span class="truncate text-sm font-semibold text-slate-900">${hero.localized_name}</span>
+            ${badge}
           </span>
         </button>
+      `;
+    }
+
+    function resultCardMarkup(hero) {
+      return `
+        <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <img src="${hero.image_path}" alt="" class="hero-thumb h-24 w-full object-cover object-center">
+          <p class="truncate border-t border-slate-100 px-2.5 py-2 text-xs font-semibold text-slate-900">${hero.hero_name}</p>
+        </div>
       `;
     }
 
@@ -297,52 +260,110 @@
       const normalizedQuery = query.trim().toLocaleLowerCase();
       let visibleCount = 0;
       grid.querySelectorAll('[data-hero]').forEach((button) => {
-        const matches = button.textContent.toLocaleLowerCase().includes(normalizedQuery);
+        const matches = button.dataset.name.includes(normalizedQuery);
         button.classList.toggle('hidden', !matches);
         if (matches) visibleCount += 1;
       });
       emptyMessage.classList.toggle('hidden', visibleCount > 0 || grid.childElementCount === 0);
     }
 
-    function renderPlayers(players) {
+    function renderSlots() {
+      suggestionSlots.replaceChildren();
+      for (let index = 0; index < suggestionsPerPlayer; index += 1) {
+        const heroKey = picks[index];
+        const slot = document.createElement('button');
+        slot.type = 'button';
+        slot.className = 'flex min-h-[92px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border p-3 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b42318]/40';
+        if (heroKey) {
+          slot.classList.add('border-slate-200', 'bg-white', 'hover:border-slate-300');
+          slot.setAttribute('aria-label', `Remove ${heroes[heroKey].localized_name}`);
+          const image = document.createElement('img');
+          image.src = `/images/${heroKey}.png`;
+          image.alt = '';
+          image.className = 'h-10 w-10 rounded-lg object-cover';
+          const name = document.createElement('span');
+          name.className = 'text-xs font-semibold text-slate-900';
+          name.textContent = heroes[heroKey].localized_name;
+          const remove = document.createElement('span');
+          remove.className = 'text-[10px] font-medium uppercase tracking-wider text-slate-400';
+          remove.textContent = 'Remove';
+          slot.append(image, name, remove);
+          slot.addEventListener('click', () => {
+            picks = picks.filter((key) => key !== heroKey);
+            renderSlots();
+            renderSuggestionGrid();
+          });
+        } else {
+          slot.classList.add('border-dashed', 'border-slate-300', 'bg-white/60', 'hover:border-slate-400');
+          const number = document.createElement('span');
+          number.className = 'text-xs font-semibold uppercase tracking-wider text-slate-500';
+          number.textContent = `Suggestion ${index + 1}`;
+          const hint = document.createElement('span');
+          hint.className = 'text-[11px] text-slate-400';
+          hint.textContent = 'Choose a hero below';
+          slot.append(number, hint);
+        }
+        suggestionSlots.append(slot);
+      }
+      const remaining = suggestionsPerPlayer - picks.length;
+      suggestionHint.textContent = remaining > 0 ? `Pick ${remaining} more` : 'Ready to send';
+      suggestionSubmitBtn.disabled = picks.length !== suggestionsPerPlayer;
+    }
+
+    function renderSuggestionGrid() {
+      heroGrid.innerHTML = Object.keys(heroes)
+        .map((key) => heroCardMarkup(key, 'Suggest', picks.indexOf(key) === -1 ? null : picks.indexOf(key)))
+        .join('');
+      filterHeroGrid(heroGrid, suggestionEmpty, suggestionSearch.value);
+      heroGrid.querySelectorAll('[data-hero]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const heroKey = button.dataset.hero;
+          if (picks.includes(heroKey)) {
+            picks = picks.filter((key) => key !== heroKey);
+          } else if (picks.length < suggestionsPerPlayer) {
+            picks = [...picks, heroKey];
+          }
+          renderSlots();
+          renderSuggestionGrid();
+        });
+      });
+    }
+
+    function renderPlayers(players, game) {
       const onlineCount = players.filter((player) => player.is_connected).length;
       playerCount.textContent = `${onlineCount} online`;
       playerList.replaceChildren();
       players.forEach((player) => {
         const item = document.createElement('li');
-        item.className = `player-row flex items-center justify-between gap-2 rounded-xl border border-slate-700 bg-slate-900/70 p-3 ${player.is_connected ? '' : 'opacity-60'}`;
+        item.className = `flex items-center justify-between gap-2 rounded-xl border border-slate-100 px-3 py-2.5 transition ${player.is_connected ? '' : 'opacity-60'}`;
 
         const details = document.createElement('span');
         details.className = 'flex min-w-0 items-center gap-2';
+        const dot = document.createElement('span');
+        dot.className = `h-1.5 w-1.5 shrink-0 rounded-full ${player.is_connected ? 'bg-emerald-500' : 'bg-slate-300'}`;
+        dot.setAttribute('aria-hidden', 'true');
         const name = document.createElement('span');
-        name.className = 'truncate font-medium text-white';
+        name.className = 'truncate text-sm font-medium text-slate-900';
         name.textContent = `${player.username}${player.id === playerId ? ' (you)' : ''}`;
-        details.append(name);
-
-        if (player.last_hero) {
-          const hero = document.createElement('span');
-          hero.className = 'flex shrink-0 items-center gap-1 text-xs text-slate-300';
-          const image = document.createElement('img');
-          image.src = `/images/${player.last_hero}.png`;
-          image.alt = '';
-          image.className = 'h-6 w-6 rounded object-cover';
-          hero.append(image, document.createTextNode(heroes[player.last_hero].localized_name));
-          details.append(hero);
-        }
+        details.append(dot, name);
 
         const badges = document.createElement('span');
-        badges.className = 'flex items-center gap-2';
+        badges.className = 'flex shrink-0 items-center gap-2';
         if (player.is_target) {
           const target = document.createElement('span');
-          target.className = 'rounded-full bg-violet-500/20 px-2 py-1 text-[10px] uppercase tracking-[0.15em] text-violet-300';
+          target.className = 'rounded-full bg-[#b42318]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#b42318]';
           target.textContent = 'Target';
           badges.append(target);
-        }
-        if (!player.is_connected) {
-          const reconnecting = document.createElement('span');
-          reconnecting.className = 'text-xs text-slate-400';
-          reconnecting.textContent = 'Reconnecting...';
-          badges.append(reconnecting);
+        } else if (!player.is_connected) {
+          const offline = document.createElement('span');
+          offline.className = 'text-xs text-slate-400';
+          offline.textContent = 'Reconnecting...';
+          badges.append(offline);
+        } else if (game.state === 'suggesting' && game.suggestions[player.id]) {
+          const sent = document.createElement('span');
+          sent.className = 'rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700';
+          sent.textContent = 'Sent';
+          badges.append(sent);
         }
 
         item.append(details, badges);
@@ -350,8 +371,33 @@
       });
     }
 
+    function renderResults(game) {
+      resultsTarget.textContent = game.target_name || 'the target player';
+      resultsSummary.textContent = game.state === 'complete' && playerId === game.target_player
+        ? 'Pick one of these heroes in the Dota client.'
+        : `${game.target_name || 'The target player'} picks one of these heroes in the Dota client.`;
+      resultsGroups.replaceChildren();
+
+      game.results.forEach((group) => {
+        const card = document.createElement('article');
+        card.className = 'rounded-xl border border-slate-200 bg-white p-3';
+        const heading = document.createElement('p');
+        heading.className = 'text-xs font-medium text-slate-500';
+        const who = document.createElement('span');
+        who.className = 'font-semibold text-slate-900';
+        who.textContent = group.username + (group.player_id === playerId ? ' (you)' : '');
+        heading.append('Suggested by ', who);
+        const grid = document.createElement('div');
+        grid.className = 'mt-3 grid grid-cols-2 gap-3';
+        grid.innerHTML = group.heroes.map(resultCardMarkup).join('');
+        card.append(heading, grid);
+        resultsGroups.append(card);
+      });
+    }
+
     function renderRoom(game) {
-      renderPlayers(game.players);
+      suggestionsPerPlayer = game.suggestions_per_player || 2;
+      renderPlayers(game.players, game);
       if (game.banter_quote) {
         banterEnglish.textContent = game.banter_quote.english;
         banterBurmese.textContent = game.banter_quote.burmese;
@@ -360,7 +406,7 @@
       if (currentPlayer && document.activeElement !== playerNameInput) {
         playerNameInput.value = currentPlayer.username;
       }
-      statusBanner.textContent = game.message;
+      setStatus(game.message);
       startRoundBtn.classList.toggle('hidden', !game.can_start);
       startRoundBtn.textContent = game.state === 'complete' ? 'Start next round' : 'Start round';
       lobbyPanel.classList.toggle('hidden', game.state !== 'lobby');
@@ -368,59 +414,37 @@
       lobbyPlayerCount.textContent = onlinePlayers < 2
         ? `Waiting for ${2 - onlinePlayers} more player${2 - onlinePlayers === 1 ? '' : 's'} to start`
         : `${onlinePlayers} players in the game`;
+
       suggestionPanel.classList.add('hidden');
-      selectionPanel.classList.add('hidden');
-      waitingSelectionPanel.classList.add('hidden');
-      resultPanel.classList.add('hidden');
-      heroGrid.replaceChildren();
-      selectionGrid.replaceChildren();
+      waitingPanel.classList.add('hidden');
+      resultsPanel.classList.add('hidden');
 
       if (game.state === 'suggesting') {
-        suggestionPanel.classList.remove('hidden');
-        suggestionEmpty.classList.add('hidden');
-        const target = game.players.find((player) => player.id === game.target_player);
-        targetPlayer.textContent = target ? target.username : 'the target player';
-
-        if (playerId !== game.target_player && !game.suggestions[playerId]) {
-          heroGrid.innerHTML = Object.keys(heroes).map((key) => heroCardMarkup(key, 'Suggest')).join('');
-          filterHeroGrid(heroGrid, suggestionEmpty, suggestionSearch.value);
-          heroGrid.querySelectorAll('[data-hero]').forEach((button) => {
-            button.addEventListener('click', () => {
-              socket.emit('submit_suggestion', { hero_key: button.dataset.hero });
-              button.disabled = true;
-            });
-          });
-        } else if (playerId !== game.target_player) {
-          heroGrid.innerHTML = '<p class="col-span-full rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-slate-300">Your suggestion is in. Waiting for the other players.</p>';
-        } else {
-          heroGrid.innerHTML = '<p class="col-span-full rounded-xl border border-slate-700 bg-slate-900/70 p-5 text-slate-300">Waiting for the other players to suggest heroes.</p>';
-        }
-      }
-
-      if (game.state === 'choosing') {
         if (playerId === game.target_player) {
-          selectionPanel.classList.remove('hidden');
-          selectionEmpty.classList.add('hidden');
-          selectionGrid.innerHTML = game.selection_options.map((option) => heroCardMarkup(option.hero_key, 'Pick')).join('');
-          filterHeroGrid(selectionGrid, selectionEmpty, selectionSearch.value);
-          selectionGrid.querySelectorAll('[data-hero]').forEach((button) => {
-            button.addEventListener('click', () => {
-              socket.emit('choose_suggestion', { hero_key: button.dataset.hero });
-              button.disabled = true;
-            });
-          });
+          waitingPanel.classList.remove('hidden');
+          waitingEyebrow.textContent = 'You are the target';
+          waitingTitle.textContent = 'Everyone is choosing two heroes for you';
+          waitingText.textContent = 'All suggestions appear at once, then you pick one in the Dota client.';
+        } else if (game.suggestions[playerId]) {
+          waitingPanel.classList.remove('hidden');
+          waitingEyebrow.textContent = 'Suggestions sent';
+          waitingTitle.textContent = 'Waiting for the rest of the party';
+          waitingText.textContent = 'Your two heroes are locked in until the round ends.';
         } else {
-          waitingSelectionPanel.classList.remove('hidden');
-          const target = game.players.find((player) => player.id === game.target_player);
-          waitingTarget.textContent = target ? target.username : 'the target player';
+          suggestionPanel.classList.remove('hidden');
+          suggestionEmpty.classList.add('hidden');
+          targetPlayer.textContent = game.target_name || 'the target player';
+          picks = picks.filter((key) => key in heroes);
+          renderSlots();
+          renderSuggestionGrid();
         }
+      } else {
+        picks = [];
       }
 
-      if (game.state === 'complete' && game.winner) {
-        resultPanel.classList.remove('hidden');
-        resultName.textContent = game.winner.hero_name;
-        resultTarget.textContent = game.winner.selected_by;
-        resultImage.src = game.winner.image_path;
+      if (game.state === 'complete') {
+        resultsPanel.classList.remove('hidden');
+        renderResults(game);
       }
     }
 
@@ -431,22 +455,18 @@
     suggestionSearch.addEventListener('input', () => {
       filterHeroGrid(heroGrid, suggestionEmpty, suggestionSearch.value);
     });
-    selectionSearch.addEventListener('input', () => {
-      filterHeroGrid(selectionGrid, selectionEmpty, selectionSearch.value);
+    suggestionSubmitBtn.addEventListener('click', () => {
+      if (picks.length !== suggestionsPerPlayer) return;
+      suggestionSubmitBtn.disabled = true;
+      socket.emit('submit_suggestions', { hero_keys: picks });
     });
     startRoundBtn.addEventListener('click', () => socket.emit('start_round'));
     socket.on('connect', () => socket.emit('join_game'));
-    socket.on('join_error', (error) => {
-      statusBanner.textContent = error.message;
-      statusBanner.classList.add('text-red-300');
-    });
+    socket.on('join_error', (error) => setStatus(error.message, true));
     socket.on('rename_success', (player) => {
       playerNameInput.value = player.username;
     });
-    socket.on('rename_error', (error) => {
-      statusBanner.textContent = error.message;
-      statusBanner.classList.add('text-red-300');
-    });
+    socket.on('rename_error', (error) => setStatus(error.message, true));
     socket.on('game_state', renderRoom);
   </script>
 </body>

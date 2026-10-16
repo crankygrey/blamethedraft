@@ -22,6 +22,8 @@ with open(
 ) as f:
     BANTER_QUOTES = json.load(f)
 
+SUGGESTIONS_PER_PLAYER = 2
+
 game = {
     "players": {},
     "next_player_number": 1,
@@ -29,8 +31,6 @@ game = {
     "target_player": None,
     "target_history": set(),
     "suggestions": {},
-    "selection_options": [],
-    "winner": None,
     "banter_quote": None,
     "message": "The shared game is open. Start a round when at least two players are here.",
 }
@@ -54,18 +54,42 @@ def game_snapshot(player_id):
             "username": player["username"],
             "is_target": joined_player_id == game["target_player"],
             "is_connected": bool(player["sids"]),
-            "last_hero": player.get("last_hero"),
         }
         for joined_player_id, player in game["players"].items()
     ]
     connected_players = sum(bool(player["sids"]) for player in game["players"].values())
+
+    results = []
+    if game["state"] == "complete":
+        for suggester_id, hero_keys in game["suggestions"].items():
+            suggester = game["players"].get(suggester_id)
+            if suggester is None:
+                continue
+            results.append(
+                {
+                    "player_id": suggester_id,
+                    "username": suggester["username"],
+                    "heroes": [
+                        {
+                            "hero_key": hero_key,
+                            "hero_name": HEROES[hero_key]["localized_name"],
+                            "image_path": f"/images/{hero_key}.png",
+                        }
+                        for hero_key in hero_keys
+                    ],
+                }
+            )
+
+    target = game["players"].get(game["target_player"])
+
     return {
         "state": game["state"],
         "players": players,
         "target_player": game["target_player"],
+        "target_name": target["username"] if target else None,
         "suggestions": game["suggestions"],
-        "selection_options": game["selection_options"],
-        "winner": game["winner"],
+        "suggestions_per_player": SUGGESTIONS_PER_PLAYER,
+        "results": results,
         "banter_quote": game["banter_quote"],
         "message": game["message"],
         "my_player_id": player_id,
@@ -83,7 +107,7 @@ def emit_game_state():
             socketio.emit("game_state", game_snapshot(player_id), to=sid)
 
 
-def advance_to_selection():
+def complete_round_if_ready():
     non_target_players = [
         player_id
         for player_id, player in game["players"].items()
@@ -95,21 +119,22 @@ def advance_to_selection():
     ):
         return
 
-    game["state"] = "choosing"
-    set_banter_quote("waiting_for_pick")
-    game["selection_options"] = [
-        {
-            "player_id": player_id,
-            "username": game["players"][player_id]["username"],
-            "hero_key": hero_key,
-            "hero_name": HEROES[hero_key]["localized_name"],
-            "image_path": f"/images/{hero_key}.png",
-        }
-        for player_id, hero_key in game["suggestions"].items()
-        if player_id in game["players"]
-    ]
+    game["state"] = "complete"
+    set_banter_quote("hero_locked_in")
     target_name = game["players"][game["target_player"]]["username"]
-    game["message"] = f"{target_name}, choose the hero you want to pick."
+    total_heroes = sum(len(hero_keys) for hero_keys in game["suggestions"].values())
+    game["message"] = (
+        f"All suggestions are in: {total_heroes} heroes for {target_name}. "
+        f"{target_name} picks one in the Dota client."
+    )
+
+    active_players = {
+        active_player_id
+        for active_player_id, player in game["players"].items()
+        if player["sids"]
+    }
+    if active_players.issubset(game["target_history"]):
+        game["target_history"].clear()
 
 
 def start_round(player_id):
@@ -131,11 +156,12 @@ def start_round(player_id):
     game["state"] = "suggesting"
     game["target_player"] = target
     game["suggestions"] = {}
-    game["selection_options"] = []
-    game["winner"] = None
     set_banter_quote("troll_suggestions")
     target_name = game["players"][target]["username"]
-    game["message"] = f"{target_name} started the round and is the target. Everyone else should suggest one hero."
+    game["message"] = (
+        f"{target_name} started the round and is the target. "
+        f"Everyone else should suggest {SUGGESTIONS_PER_PLAYER} heroes."
+    )
     emit_game_state()
 
 
@@ -224,10 +250,10 @@ def handle_start_round():
     start_round(player_id)
 
 
-@socketio.on("submit_suggestion")
-def handle_submit_suggestion(data):
+@socketio.on("submit_suggestions")
+def handle_submit_suggestions(data):
     player_id = session.get("player_id")
-    hero_key = (data or {}).get("hero_key", "")
+    hero_keys = (data or {}).get("hero_keys") or []
 
     if game["state"] != "suggesting":
         return
@@ -235,48 +261,20 @@ def handle_submit_suggestion(data):
         return
     if player_id in game["suggestions"]:
         return
-    if hero_key not in HEROES:
+    if not isinstance(hero_keys, list) or len(hero_keys) != SUGGESTIONS_PER_PLAYER:
+        return
+    if len(set(hero_keys)) != SUGGESTIONS_PER_PLAYER:
+        return
+    if any(hero_key not in HEROES for hero_key in hero_keys):
         return
 
-    game["suggestions"][player_id] = hero_key
+    game["suggestions"][player_id] = list(hero_keys)
     set_banter_quote("troll_suggestions")
     game["message"] = (
-        f"{game['players'][player_id]['username']} submitted a suggestion. "
+        f"{game['players'][player_id]['username']} sent {SUGGESTIONS_PER_PLAYER} hero suggestions. "
         "Waiting for the remaining players."
     )
-    advance_to_selection()
-    emit_game_state()
-
-
-@socketio.on("choose_suggestion")
-def handle_choose_suggestion(data):
-    player_id = session.get("player_id")
-    hero_key = (data or {}).get("hero_key", "")
-
-    if game["state"] != "choosing" or player_id != game["target_player"]:
-        return
-    if hero_key not in {option["hero_key"] for option in game["selection_options"]}:
-        return
-
-    target_name = game["players"][player_id]["username"]
-    game["winner"] = {
-        "hero_key": hero_key,
-        "hero_name": HEROES[hero_key]["localized_name"],
-        "image_path": f"/images/{hero_key}.png",
-        "selected_by": target_name,
-    }
-    game["players"][player_id]["last_hero"] = hero_key
-    game["state"] = "complete"
-    set_banter_quote("hero_locked_in")
-    game["message"] = f"{target_name} picked {HEROES[hero_key]['localized_name']}!"
-    active_players = {
-        active_player_id
-        for active_player_id, player in game["players"].items()
-        if player["sids"]
-    }
-    if active_players.issubset(game["target_history"]):
-        game["target_history"].clear()
-    socketio.emit("round_result", game["winner"])
+    complete_round_if_ready()
     emit_game_state()
 
 
@@ -315,22 +313,20 @@ def expire_disconnected_player(player_id, disconnect_token):
     game["suggestions"].pop(player_id, None)
     game["target_history"].discard(player_id)
 
-    if game["target_player"] == player_id and game["state"] in ("suggesting", "choosing"):
+    if game["target_player"] == player_id and game["state"] == "suggesting":
         game["state"] = "lobby"
         game["target_player"] = None
         game["suggestions"] = {}
-        game["selection_options"] = []
         game["message"] = "The target player left. Start a new round when ready."
-    elif game["state"] in ("suggesting", "choosing") and sum(
+    elif game["state"] == "suggesting" and sum(
         bool(player["sids"]) for player in game["players"].values()
     ) < 2:
         game["state"] = "lobby"
         game["target_player"] = None
         game["suggestions"] = {}
-        game["selection_options"] = []
         game["message"] = "At least two browsers must be here to continue. Start a new round when ready."
     elif game["state"] == "suggesting":
-        advance_to_selection()
+        complete_round_if_ready()
 
     emit_game_state()
 

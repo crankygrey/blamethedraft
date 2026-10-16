@@ -11,9 +11,10 @@ A lightweight Flask + Socket.IO Dota 2 peer-suggestion game. Visitors are automa
 - Any participant can start a round once at least two players are connected
 - The player who starts the round becomes its target
 - Players who have already been a target cannot start another round until everyone has had a turn
-- Suggestion phase for every non-target player
-- Selection phase for the target player
-- Search hero names while suggesting or choosing
+- Suggestion phase where every non-target player sends two heroes
+- Results view groups the suggested heroes by the player who suggested them
+- The target player chooses their final hero in the Dota client, not in the app
+- Search hero names while suggesting
 - Random English and Burmese banter quotes that change as players make picks
 - Dota 2 hero art served locally from the project asset folder
 
@@ -23,6 +24,7 @@ A lightweight Flask + Socket.IO Dota 2 peer-suggestion game. Visitors are automa
 - `heroes_data.json` – hero metadata including local image paths
 - `images/` – downloaded hero PNG assets
 - `templates/` – shared game UI
+- `static/js/tailwind.js` – vendored Tailwind build so the UI needs no CDN
 - `requirements.txt` – Python dependencies
 
 ## Run locally
@@ -49,6 +51,8 @@ A lightweight Flask + Socket.IO Dota 2 peer-suggestion game. Visitors are automa
 ## Notes
 
 - The app stores game state in memory only; restarting the server clears active players and rounds.
+- Styling uses a local Tailwind build in `static/js/tailwind.js`, so no CDN or VPN is needed for the UI. Changing Tailwind classes works without a build step.
+- The Socket.IO browser client is still loaded from `cdn.socket.io`; vendor it into `static/js/` if you need the game to run fully offline.
 - Browser identity uses a signed Flask session cookie. Clearing browser cookies or using a different browser profile creates another player identity; this is not an anti-cheat or security boundary.
 - A disconnected browser keeps its player identity for 30 seconds, allowing refresh/reconnect without changing its player number.
 - Set a strong `SECRET_KEY` environment variable in Render so Flask session cookies can be verified consistently.
