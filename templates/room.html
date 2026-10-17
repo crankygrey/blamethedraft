@@ -23,19 +23,22 @@
   <style>
     :root {
       color-scheme: light;
+       --neu-bg: #e0e5ec;
+       --neu-shadow: 9px 9px 16px #a3b1c6, -9px -9px 16px #ffffff;
       --surface-border: #e6e8ec;
-      --brand: #b42318;
+      --brand: #ff3366;
+       --accent: #00d4ff;
     }
 
     body {
-      background: #f6f7f9;
+      background: var(--neu-bg);
       font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     }
 
     .surface {
-      border: 1px solid var(--surface-border);
-      background: #ffffff;
-      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+border: none;
+       background: var(--neu-bg);
+       box-shadow: var(--neu-shadow);
     }
 
     .eyebrow {
