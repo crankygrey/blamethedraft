@@ -428,7 +428,7 @@ border: none;
       }
       setStatus(game.message);
       startRoundBtn.classList.toggle('hidden', !game.can_start);
-      startRoundBtn.textContent = game.state === 'complete' ? 'Start next round' : 'Start round';
+      startRoundBtn.textContent = 'Start round';
       lobbyPanel.classList.toggle('hidden', game.state !== 'lobby');
       const onlinePlayers = game.players.filter((player) => player.is_connected).length;
       lobbyPlayerCount.textContent = onlinePlayers < 2
